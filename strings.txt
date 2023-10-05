@@ -1,12 +1,16 @@
 {
     "Title":"Milkweed Pipeline",
     "Species_Entry":"Name of species column:",
-    "ID_Entry":"Name of ID column:",
-    "Classifier_Entry":"Choose a classifier:",
-    "Data_Entry":"Upload dataset:",
-    "Classifier_Options":["Nearest Neighbor", "Decision Tree", "Random Forest"],
+    "Species_Default":"species",
     "Species_Error_Empty":"Please enter the name of the species column.",
+    "ID_Entry":"Name of ID column:",
+    "ID_Default":"id",
     "ID_Error_Empty":"Please enter the name of the ID column.",
-    "Error_Nonexistent":"This column does not exist in the data."
-
+    "Error_Nonexistent":"This column does not exist in the data.",
+    "Classifier_Entry":"Choose a classifier:",
+    "Classifier_Options":["Nearest Neighbor", "Decision Tree", "Random Forest"],
+    "Data_Entry":"Upload dataset:",
+    "Data_Error_Empty":"Please upload a dataset.",
+    "Data_Error_Type":"Please upload a '.csv' file.",
+    "Data_Error_File_Empty":"File is empty."
 }
