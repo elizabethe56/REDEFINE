@@ -4,13 +4,15 @@
     "Species_Default":"species",
     "Species_Error_Empty":"Please enter the name of the species column.",
     "ID_Entry":"Name of ID column:",
-    "ID_Default":"id",
+    "ID_Default":"ID",
     "ID_Error_Empty":"Please enter the name of the ID column.",
-    "Error_Nonexistent":"This column does not exist in the data.",
+    "Column_Error_Nonexistent":"This column does not exist in the data.",
     "Classifier_Entry":"Choose a classifier:",
     "Classifier_Options":["Nearest Neighbor", "Decision Tree", "Random Forest"],
     "Data_Entry":"Upload dataset:",
     "Data_Error_Empty":"Please upload a dataset.",
     "Data_Error_Type":"Please upload a '.csv' file.",
-    "Data_Error_File_Empty":"File is empty."
+    "Data_Error_File_Empty":"File is empty.",
+    "Run_Button":"Run!",
+    "Show_Data_Toggle":"Show Raw Data"
 }

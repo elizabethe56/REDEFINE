@@ -21,13 +21,9 @@ class App:
 
         return
     
-    def __switch_state(self, 
+    def __to_state_false(self, 
                      key: str):
-        if st.session_state[key]:
-            st.session_state[key] = False
-        else:
-            st.session_state[key] = True
-        return
+        st.session_state[key] = False
     
     
     def __load_data(self,
@@ -102,6 +98,8 @@ class App:
         data_file = col1.file_uploader(self.__STRINGS['Data_Entry'], 
                                        type = 'csv', 
                                        accept_multiple_files = False,
+                                       on_change=self.__to_state_false,
+                                       args=['raw_toggle'],
                                        key = 'data_input')
         data_err = col1.empty()
 
@@ -113,9 +111,25 @@ class App:
             data_err.error(data_err_msg)
 
         if st.session_state.has_data:
+
+            # Verify if inputted columns are valid in the data
+            cols = st.session_state.data.columns
+
+            if (species_col != "") and (species_col not in cols):
+                species_err.error(self.__STRINGS['Column_Error_Nonexistent'])
+            if (id_col != "") and (id_col not in cols):
+                id_err.error(self.__STRINGS['Column_Error_Nonexistent'])
+
+        else:
+            # Turn off raw_data toggle
+            st.session_state.raw_toggle = False
+
+        raw_data = col1.toggle(self.__STRINGS['Show_Data_Toggle'],
+                               key = 'raw_toggle',
+                               disabled = not st.session_state.has_data)
+        
+        if raw_data:
             col1.dataframe(st.session_state.data)
-
-
 
         ###### TEMP ######
         col2.write(st.session_state)
