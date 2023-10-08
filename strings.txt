@@ -1,5 +1,9 @@
 {
     "Title":"Milkweed Pipeline",
+    "Data_Entry":"Upload dataset:",
+    "Data_Error_Empty":"Please upload a dataset.",
+    "Data_Error_Type":"Please upload a '.csv' file.",
+    "Data_Error_File_Empty":"File is empty.",
     "Default_Selectbox":["(Select)"],
     "None_Selectbox_Option":"(None)",
     "Target_Entry":"Target Column:",
@@ -8,13 +12,9 @@
     "ID_Entry":"ID Column:",
     "ID_Default":"ID",
     "Classifier_Entry":"Choose a classifier:",
-    "Classifier_Options":["Nearest Neighbor", "Decision Tree", "Random Forest"],
+    "Classifier_Options":["(Select)","Nearest Neighbor", "Random Forest"],
     "Cluster_Entry":"Choose a clustering algorithm:",
-    "Cluster_Options":["KMeans","KMeans"],
-    "Data_Entry":"Upload dataset:",
-    "Data_Error_Empty":"Please upload a dataset.",
-    "Data_Error_Type":"Please upload a '.csv' file.",
-    "Data_Error_File_Empty":"File is empty.",
+    "Cluster_Options":["(Select)","KMeans","KMeans"],
     "Run_Button":"Run!",
     "Show_Data_Toggle":"Show Raw Data"
 }

@@ -116,9 +116,14 @@ class App:
             id_err.error(self.__STRINGS['Column_Error_Dup'])
 
         # Classifier Selector
-        classifier = col1.selectbox('Choose a classifier:', 
+        classifier = col1.selectbox(self.__STRINGS['Classifier_Entry'], 
                                     options = self.__STRINGS['Classifier_Options'], 
                                     key = 'classifier_input')
+        
+        # Cluster Selector
+        cluster = col1.selectbox(self.__STRINGS['Cluster_Entry'], 
+                                    options = self.__STRINGS['Cluster_Options'], 
+                                    key = 'cluster_input')
 
         raw_data = col1.toggle(self.__STRINGS['Show_Data_Toggle'],
                                key = 'raw_toggle',
