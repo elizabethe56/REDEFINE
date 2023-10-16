@@ -16,7 +16,7 @@
     "ID_Default":"ID",
     "Classifier_Entry":"Choose a classifier:",
     "Classifier_Options":["(Select)","Nearest Neighbor", "Random Forest"],
-    "Classifier_Params":{"Nearest Neighbor":["1", "2", "3", "4"], "Random Forest":["A", "B", "C", "D"]},
+    "Classifier_Params":{"Nearest Neighbor":["n_neighbors", "weights"], "Random Forest":["n_estimators", "criterion", "max_depth", "random_state"]},
     "Cluster_Entry":"Choose a clustering algorithm:",
     "Cluster_Options":["(Select)","KMeans","KMeans"],
     "Run_Button":"Run!",
