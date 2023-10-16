@@ -1,5 +1,8 @@
 {
-    "Title":"Milkweed Pipeline",
+    "Title":"REDEFINE",
+    "Subtitle":"Reclassify Enhanced Data for Improved Normalization and Evaluation",
+    "Header1":"Data",
+    "Header2":"Evaluation",
     "Data_Entry":"Upload dataset:",
     "Data_Error_Empty":"Please upload a dataset.",
     "Data_Error_Type":"Please upload a '.csv' file.",
@@ -13,6 +16,7 @@
     "ID_Default":"ID",
     "Classifier_Entry":"Choose a classifier:",
     "Classifier_Options":["(Select)","Nearest Neighbor", "Random Forest"],
+    "Classifier_Params":{"Nearest Neighbor":["1", "2", "3", "4"], "Random Forest":["A", "B", "C", "D"]},
     "Cluster_Entry":"Choose a clustering algorithm:",
     "Cluster_Options":["(Select)","KMeans","KMeans"],
     "Run_Button":"Run!",
