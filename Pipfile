@@ -8,6 +8,7 @@ streamlit = "*"
 pandas = "*"
 watchdog = "*"
 scikit-learn = "*"
+tqdm = "*"
 
 [dev-packages]
 

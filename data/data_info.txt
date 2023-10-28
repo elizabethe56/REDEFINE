@@ -1,0 +1,7 @@
+
+iris_modified.csv has data that is purposefully misclassified for testing purposes:
+index: 11; old value: setosa; new value: versicolor
+index: 46; old value: setosa; new value: virginica
+index: 62; old value: versicolor; new value: virginica
+index: 87; old value: versicolor; new value: setosa
+index: 146; old value: virginica; new value: versicolor
