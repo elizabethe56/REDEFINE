@@ -91,6 +91,14 @@ class App:
             except:
                 return
         return
+    
+    def __validate_classifier(self):
+        # TODO
+        return
+    
+    def __validate_cluster(self):
+        # TODO
+        return
         
     def window(self):
         # Title
@@ -188,12 +196,11 @@ class App:
                                         options = self.__STRINGS['Classifier_Options'], 
                                         key = 'classifier_input')
             
-            subcol1, subcol2, subcol3, subcol4 = col1.columns(4)
+            subcol1_1, subcol2_1, subcol3_1, subcol4_1 = col1.columns(4)
 
             # columns for parameter inputs
-            params = [subcol1.empty(), subcol2.empty(), subcol3.empty(), subcol4.empty()]
-            validate = subcol1.empty()
-
+            params = [subcol1_1.empty(), subcol2_1.empty(), subcol3_1.empty(), subcol4_1.empty()]
+            validate_class = subcol1_1.empty()
 
             if classifier != self.__STRINGS['Default_Selectbox'][0]:
                 param_inputs = {}
@@ -211,12 +218,36 @@ class App:
 
                 st.session_state.param_dict[classifier] = param_inputs
                 
-                validate.button('Validate')
+                validate_class.button('Validate', on_click=self.__validate_classifier, key = 'val_class')
             
-            # Cluster Selector
+            ########## Cluster Selector ##########
             cluster = col1.selectbox(self.__STRINGS['Cluster_Entry'], 
                                         options = self.__STRINGS['Cluster_Options'], 
                                         key = 'cluster_input')
+            
+            subcol1_2, subcol2_2, subcol3_2, subcol4_2 = col1.columns(4)
+
+            # columns for parameter inputs
+            params = [subcol1_2.empty(), subcol2_2.empty(), subcol3_2.empty(), subcol4_2.empty()]
+            validate_cluster = subcol1_2.empty()
+
+            if cluster != self.__STRINGS['Default_Selectbox'][0]:
+                param_inputs = {}
+                # generate each parameter text input and collect their values
+                for i in range(len(self.__STRINGS["Cluster_Params"][cluster])):
+                    param_name = self.__STRINGS["Cluster_Params"][cluster][i]
+                    # Set default value to previous entry, otherwise empty
+                    try:
+                        value = st.session_state.param_dict[cluster][param_name]
+                    except:
+                        value = None
+                    
+                    temp = params[i].text_input(param_name, value)
+                    param_inputs[param_name] = temp
+
+                st.session_state.param_dict[cluster] = param_inputs
+                
+                validate_cluster.button('Validate', on_click=self.__validate_cluster, key = 'val_clus')
 
         # Raw Data Toggle
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
