@@ -9,6 +9,7 @@ pandas = "*"
 watchdog = "*"
 scikit-learn = "*"
 tqdm = "*"
+urllib3 = "*"
 
 [dev-packages]
 
