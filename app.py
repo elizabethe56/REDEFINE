@@ -7,10 +7,14 @@ from redefine import REDEFINE
 
 st.set_page_config(layout='wide')
 
+# TODO: Add help tooltips to the inputs
+
 class App:
 
     with open('strings.txt', 'r') as f:
         __STRINGS = json.load(f)
+
+    DEMO_DATA_PATH = './data/iris_true.csv'
 
     def __init__(self):
         # Preset session states; Used to preserve states on reruns/button pushes
@@ -44,7 +48,7 @@ class App:
                 st.session_state[k] = False
     
     def __load_data(self,
-                    file: st.UploadedFile):
+                    file: st.UploadedFile | str):
         
         @st.cache_data
         def verify_data(file):
@@ -52,10 +56,11 @@ class App:
             data = ""
             error = ""
 
-            if file is None:
-                error = self.__STRINGS['Data_Error_Empty']
-            elif file.name.split('.')[-1] != 'csv':
-                error = self.__STRINGS['Data_Error_Type']
+            if type(file) != str:
+                if file is None:
+                    error = self.__STRINGS['Data_Error_Empty']
+                elif file.name.split('.')[-1] != 'csv':
+                    error = self.__STRINGS['Data_Error_Type']
 
             if error == "":
                 data = pd.read_csv(file)
@@ -105,15 +110,27 @@ class App:
 
         col1.subheader(self.__STRINGS['Header1'])
 
+        ########## Demo Data ##########
+        demo_data = col1.toggle(self.__STRINGS['Data_Demo'],
+                               key = 'demo_toggle',
+                               on_change = self.__to_state_false,
+                               args = [['raw_toggle', 'data_set']])
+
         ########## Data ##########
         data_file = col1.file_uploader(self.__STRINGS['Data_Entry'], 
                                        type = 'csv', 
                                        accept_multiple_files = False,
                                        on_change=self.__to_state_false,
                                        args=[['raw_toggle', 'data_set']],
-                                       key = 'data_input')
+                                       key = 'data_input',
+                                       disabled = st.session_state.demo_toggle)
 
-        has_data, data, data_err_msg = self.__load_data(data_file)
+        if demo_data:
+            has_data, data, data_err_msg = self.__load_data(self.DEMO_DATA_PATH)
+            st.session_state.target_input = self.__STRINGS['Data_Demo_Cols']['target']
+            st.session_state.id_input = self.__STRINGS['Data_Demo_Cols']['id']
+        else:
+            has_data, data, data_err_msg = self.__load_data(data_file)
         st.session_state.has_data = has_data
         st.session_state.data = data
         
@@ -131,8 +148,8 @@ class App:
                                     options = cols.copy(),
                                     key = 'target_input',
                                     on_change = self.__to_state_false,
-                                    args = ['target_valid'])
-
+                                    args = ['target_valid'],
+                                    disabled = st.session_state.demo_toggle)
         if st.session_state.has_data:
             if target_col == self.__STRINGS['Default_Selectbox'][0]:
                 col1.error(self.__STRINGS['Column_Error_Empty'])
@@ -145,7 +162,8 @@ class App:
                                 options = cols.copy(),
                                 key = 'id_input',
                                 on_change = self.__to_state_false,
-                                args = ['id_valid'])
+                                args = ['id_valid'],
+                                disabled = st.session_state.demo_toggle)
 
         if st.session_state.has_data:
             if id_col == self.__STRINGS['Default_Selectbox'][0]:

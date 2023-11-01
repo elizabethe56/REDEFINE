@@ -2,6 +2,8 @@
     "Title":"REDEFINE",
     "Subtitle":"Reclassify Enhanced Data for Improved Normalization and Evaluation",
     "Header1":"Data",
+    "Data_Demo":"Use Iris Data",
+    "Data_Demo_Cols":{"target":"target", "id":"id"},
     "Data_Entry":"Upload dataset:",
     "Data_Error_Empty":"Please upload a dataset.",
     "Data_Error_Type":"Please upload a '.csv' file.",

@@ -7,9 +7,6 @@ class REDEFINE:
         return
     
     def __clean_data(self, data, target_col, id_col):
-        print(type(data))
-        print(type(target_col))
-        print(data[target_col])
         # Separate data
         self.__IDs = data[id_col]
         Y = data[target_col]
