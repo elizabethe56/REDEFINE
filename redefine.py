@@ -22,6 +22,20 @@ class REDEFINE:
         scaler = StandardScaler()
         self.__X = scaler.fit_transform(X)
 
+    def validate_classifier(self, model, params):
+        # TODO
+        print(model)
+        for key, val in params.items():
+            print(key, val)
+        return
+    
+    def validate_cluster_alg(self, model, params):
+        # TODO
+        print(model)
+        for key, val in params.items():
+            print(key, val)
+        return
+
     # Getters
     def get_X(self):
         return self.__X.copy()

@@ -7,7 +7,7 @@ from redefine import REDEFINE
 
 st.set_page_config(layout='wide')
 
-# TODO: Add help tooltips to the inputs
+# TODO: add tooltips to UI inputs
 
 class App:
 
@@ -40,16 +40,37 @@ class App:
         return
     
     def __to_state_false(self,
-                         key: str | list):
+                         key: str | list[str]):
+        '''
+        Turns the given session state(s) false.  
+        Used in on_click to reset states or turn functionalities off
+        
+        Input:
+            key: string or list of strings with the names of session states
+        '''
+
         if type(key) == str:
             st.session_state[key] = False
         else:
             for k in key:
                 st.session_state[k] = False
+        return
     
     def __load_data(self,
-                    file: st.UploadedFile | str):
+                    file: st.UploadedFile | str
+                    ) -> (bool, pd.DataFrame, str):
+        '''
+        Checks the data for errors and loads the data.
+        Uses an internal function to cache the data
         
+        Input:
+            file: file via st.file_uploader | str if using demo data
+        Output:
+            has_data: boolean for has_data flag
+            data: pandas DataFrame of data if verified
+            error: error string, if found
+        '''
+
         @st.cache_data
         def verify_data(file):
             has_data = False
@@ -76,6 +97,11 @@ class App:
         return verify_data(file)
     
     def __set_data(self):
+        '''
+        Initiates REDFINE object with the data if all data and column specifications are all valid.
+        Triggered with the set_data_button.  If data gets set, the 
+        Uses an internal function to cache the data.
+        '''
         
         @st.cache_data
         def create_redefine_object(data, target_col, id_col):
@@ -92,32 +118,39 @@ class App:
                 return
         return
     
-    def __validate_classifier(self):
-        # TODO
+    def __validate_class(self, classifier):
+        '''
+        Runs a 10-fold cross validation with the chosen classifier model and hyperparameters.
+        Inputs:
+            classifier: name of classifier model
+        '''
+        st.session_state.redefine.validate_classifier(classifier, st.session_state.param_dict[classifier])
+
         return
     
-    def __validate_cluster(self):
-        # TODO
+    def __validate_cluster(self, cluster):
+        '''
+        Runs a 10-fold cross validation with the chosen cluster algorithm and hyperparameters.
+        Inputs:
+            model: name of cluster algorithm
+        '''
+        st.session_state.redefine.validate_cluster_alg(cluster, st.session_state.param_dict[cluster])
+
         return
         
     def window(self):
-        # Title
+        '''
+        Main body for the UI.
+        '''
+
+        # Titles
         st.title(self.__STRINGS['Title'])
         st.header(self.__STRINGS['Subtitle'])
         
         col1, col2 = st.columns([1,1])
 
-        # col1: "Form"
-        # - Target Column: target_input
-        # - ID Column: id_input
-        # - Classifier Selector: classifier_input
-        # - Cluster Selector: cluster_input
-        # - Data Upload: data_input
-        # - Run Button
-        # - View Raw Data
-
         col1.subheader(self.__STRINGS['Header1'])
-
+        # region
         ########## Demo Data ##########
         demo_data = col1.toggle(self.__STRINGS['Data_Demo'],
                                key = 'demo_toggle',
@@ -128,9 +161,9 @@ class App:
         data_file = col1.file_uploader(self.__STRINGS['Data_Entry'], 
                                        type = 'csv', 
                                        accept_multiple_files = False,
+                                       key = 'data_input',
                                        on_change=self.__to_state_false,
                                        args=[['raw_toggle', 'data_set']],
-                                       key = 'data_input',
                                        disabled = st.session_state.demo_toggle)
 
         if demo_data:
@@ -185,7 +218,9 @@ class App:
         set_data = col1.button(self.__STRINGS['Set_Data_Button'],
                                   key = 'set_data_button',
                                   on_click = self.__set_data)
-
+        # endregion
+        
+        # region
         # Only show Classifier/Cluster options if data and columns are valid
         if st.session_state.data_set:
             ########## Classifier Selector ##########
@@ -218,7 +253,10 @@ class App:
 
                 st.session_state.param_dict[classifier] = param_inputs
                 
-                validate_class.button('Validate', on_click=self.__validate_classifier, key = 'val_class')
+                validate_class.button('Validate',
+                                      key = 'val_class',
+                                      on_click=self.__validate_class,
+                                      args = [st.session_state.classifier_input])
             
             ########## Cluster Selector ##########
             cluster = col1.selectbox(self.__STRINGS['Cluster_Entry'], 
@@ -247,7 +285,11 @@ class App:
 
                 st.session_state.param_dict[cluster] = param_inputs
                 
-                validate_cluster.button('Validate', on_click=self.__validate_cluster, key = 'val_clus')
+                validate_cluster.button('Validate', 
+                                        key = 'val_clus',
+                                        on_click=self.__validate_cluster,
+                                        args=[st.session_state.cluster_input])
+        # endregion
 
         # Raw Data Toggle
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
@@ -261,8 +303,6 @@ class App:
 
         ###### TEMP ######
         col2.write(st.session_state)
-
-
 
 
 if __name__ == '__main__':
