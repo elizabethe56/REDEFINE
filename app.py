@@ -18,7 +18,6 @@ class App:
 
     def __init__(self):
         # Preset session states; Used to preserve states on reruns/button pushes
-        print('new sesh')
         if 'data' not in st.session_state:
             st.session_state.data = ""
         if 'has_data' not in st.session_state:
@@ -129,31 +128,36 @@ class App:
                 return
         return
     
-    def __validate_class(self, classifier):
+    def __validate_class_clust(self, model, model_type):
         '''
         Runs a 10-fold cross validation with the chosen classifier model and hyperparameters.
         Inputs:
             classifier: name of classifier model
         '''
-        err, res = st.session_state.redefine.validate_classifier(classifier, 
-                                                                st.session_state.param_dict[classifier],
-                                                                st.session_state.scaler_input)
-        st.session_state.class_results_err = err
-        st.session_state.class_results = res
+        err, res = st.session_state.redefine.validate_class_clust(model, 
+                                                                st.session_state.param_dict[model],
+                                                                st.session_state.scaler_input,
+                                                                model_type)
+        if model_type == 'classifier':
+            st.session_state.class_results_err = err
+            st.session_state.class_results = res
+        elif model_type == 'cluster':
+            st.session_state.clust_results_err = err
+            st.session_state.clust_results = res
         return
     
-    def __validate_cluster(self, cluster):
-        '''
-        Runs a 10-fold cross validation with the chosen cluster algorithm and hyperparameters.
-        Inputs:
-            model: name of cluster algorithm
-        '''
-        err, res = st.session_state.redefine.validate_cluster_alg(cluster, 
-                                                       st.session_state.param_dict[cluster],
-                                                       st.session_state.scaler_input)
-        st.session_state.clust_results_err = err
-        st.session_state.clust_results = res
-        return
+    # def __validate_cluster(self, cluster):
+    #     '''
+    #     Runs a 10-fold cross validation with the chosen cluster algorithm and hyperparameters.
+    #     Inputs:
+    #         model: name of cluster algorithm
+    #     '''
+    #     err, res = st.session_state.redefine.validate_cluster_alg(cluster, 
+    #                                                    st.session_state.param_dict[cluster],
+    #                                                    st.session_state.scaler_input)
+    #     st.session_state.clust_results_err = err
+    #     st.session_state.clust_results = res
+    #     return
         
     def window(self):
         '''
@@ -281,8 +285,9 @@ class App:
                 
                 validate_class.button('Validate',
                                       key = 'val_class',
-                                      on_click=self.__validate_class,
-                                      args = [st.session_state.classifier_input])
+                                      on_click=self.__validate_class_clust,
+                                      args = [st.session_state.classifier_input,
+                                              'classifier'])
                 
                 validate_class_res = col1.empty()
                 
@@ -320,8 +325,9 @@ class App:
                 
                 validate_cluster.button('Validate', 
                                         key = 'val_clus',
-                                        on_click=self.__validate_cluster,
-                                        args=[st.session_state.cluster_input])
+                                        on_click=self.__validate_class_clust,
+                                        args=[st.session_state.cluster_input, 
+                                              'cluster'])
                 
                 validate_clust_res = col1.empty()
                 

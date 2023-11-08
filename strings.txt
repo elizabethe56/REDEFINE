@@ -21,10 +21,10 @@
     "Scaler_Options":["None", "Standard", "Min-Max", "Absolute Max", "Robust"],
     "Classifier_Entry":"Choose a classifier:",
     "Classifier_Options":["(Select)","Nearest Neighbor", "Random Forest"],
-    "Classifier_Params":{"Nearest Neighbor":["n_neighbors", "weights"], "Random Forest":["n_estimators", "criterion", "max_depth", "random_state"]},
+    "Classifier_Params":{"Nearest Neighbor":["n_neighbors", "weights"], "Random Forest":["n_estimators", "criterion", "max_depth"]},
     "Cluster_Entry":"Choose a clustering algorithm:",
     "Cluster_Options":["(Select)","KMeans","KMeans"],
-    "Cluster_Params":{"KMeans":["n_clusters", "n_init", "max_iter", "tol"]},
+    "Cluster_Params":{"KMeans":["n_init", "max_iter", "tol"]},
     "Run_Button":"Run!",
     "Show_Data_Toggle":"Show Raw Data"
 }
