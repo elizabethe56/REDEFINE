@@ -18,6 +18,7 @@ class App:
 
     def __init__(self):
         # Preset session states; Used to preserve states on reruns/button pushes
+        print('new sesh')
         if 'data' not in st.session_state:
             st.session_state.data = ""
         if 'has_data' not in st.session_state:
@@ -33,6 +34,16 @@ class App:
 
         if 'param_dict' not in st.session_state:
             st.session_state.param_dict = {}
+        
+        if 'class_results_err' not in st.session_state:
+            st.session_state.class_results_err = None
+        if 'class_results' not in st.session_state:
+            st.session_state.class_results = None
+        
+        if 'clust_results_err' not in st.session_state:
+            st.session_state.clust_results_err = None
+        if 'clust_results' not in st.session_state:
+            st.session_state.clust_results = None
 
         if 'raw_toggle' not in st.session_state:
             st.session_state.raw_toggle = False
@@ -124,8 +135,11 @@ class App:
         Inputs:
             classifier: name of classifier model
         '''
-        st.session_state.redefine.validate_classifier(classifier, st.session_state.param_dict[classifier])
-
+        err, res = st.session_state.redefine.validate_classifier(classifier, 
+                                                                st.session_state.param_dict[classifier],
+                                                                st.session_state.scaler_input)
+        st.session_state.class_results_err = err
+        st.session_state.class_results = res
         return
     
     def __validate_cluster(self, cluster):
@@ -134,8 +148,11 @@ class App:
         Inputs:
             model: name of cluster algorithm
         '''
-        st.session_state.redefine.validate_cluster_alg(cluster, st.session_state.param_dict[cluster])
-
+        err, res = st.session_state.redefine.validate_cluster_alg(cluster, 
+                                                       st.session_state.param_dict[cluster],
+                                                       st.session_state.scaler_input)
+        st.session_state.clust_results_err = err
+        st.session_state.clust_results = res
         return
         
     def window(self):
@@ -150,6 +167,7 @@ class App:
         col1, col2 = st.columns([1,1])
 
         col1.subheader(self.__STRINGS['Header1'])
+        # Data Input
         # region
         ########## Demo Data ##########
         demo_data = col1.toggle(self.__STRINGS['Data_Demo'],
@@ -220,13 +238,21 @@ class App:
                                   on_click = self.__set_data)
         # endregion
         
+        # Model Selection
         # region
         # Only show Classifier/Cluster options if data and columns are valid
         if st.session_state.data_set:
-            ########## Classifier Selector ##########
             col1.markdown('-----')
             col1.subheader(self.__STRINGS['Header2'])
+            
+            ########## Scaler Selector ##########
+            scaler_entry = col1.radio(self.__STRINGS['Scaler_Entry'],
+                                      options = self.__STRINGS['Scaler_Options'],
+                                      index = 1,
+                                      key = 'scaler_input',
+                                      horizontal = True)
 
+            ########## Classifier Selector ##########
             classifier = col1.selectbox(self.__STRINGS['Classifier_Entry'], 
                                         options = self.__STRINGS['Classifier_Options'], 
                                         key = 'classifier_input')
@@ -257,6 +283,13 @@ class App:
                                       key = 'val_class',
                                       on_click=self.__validate_class,
                                       args = [st.session_state.classifier_input])
+                
+                validate_class_res = col1.empty()
+                
+                if st.session_state.class_results_err is not None:
+                    validate_class_res.error(st.session_state.class_results_err)
+                elif st.session_state.class_results is not None:
+                    validate_class_res.write(f"Accuracy Score: {st.session_state.class_results}")
             
             ########## Cluster Selector ##########
             cluster = col1.selectbox(self.__STRINGS['Cluster_Entry'], 
@@ -289,9 +322,18 @@ class App:
                                         key = 'val_clus',
                                         on_click=self.__validate_cluster,
                                         args=[st.session_state.cluster_input])
+                
+                validate_clust_res = col1.empty()
+                
+                if st.session_state.clust_results_err is not None:
+                    validate_clust_res.error(st.session_state.clust_results_err)
+                elif st.session_state.clust_results is not None:
+                    validate_clust_res.write(f"Accuracy Score: {st.session_state.clust_results}")
         # endregion
 
-        # Raw Data Toggle
+        # Results
+        # region
+        ########## Raw Data Toggle ##########
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
                                key = 'raw_toggle',
                                disabled = not st.session_state.has_data)
@@ -300,7 +342,8 @@ class App:
             col2.dataframe(st.session_state.data)
             if st.session_state.data_set:
                 col2.dataframe(st.session_state.redefine.get_X())
-
+        # endregion
+        
         ###### TEMP ######
         col2.write(st.session_state)
 
