@@ -27,5 +27,8 @@
     "Cluster_Params":{"KMeans":["max_iter", "tol"]},
     "Run_Button":"Run!",
     "Header3":"Results",
+    "Results_Text":"Potentially misclassified points:",
+    "Download_Results":"Download Results File",
+    "Download_Metadata":"Download Metadata File",
     "Show_Data_Toggle":"Show Raw Data"
 }

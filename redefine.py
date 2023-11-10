@@ -125,7 +125,7 @@ class REDEFINE:
                                     store_results = True)
         
         if class_info['error'] is not None:
-            return class_info['error'], None
+            return class_info['error'], None, None
         else:
             for idx, res in class_info['results']:
                 results_df.at[idx, 'ClassificationResult'] = res
@@ -138,17 +138,18 @@ class REDEFINE:
                                     store_results = True)
         
         if clust_info['error'] is not None:
-            return clust_info['error'], None
+            return clust_info['error'], None, None
         else:
             results_df['ClusterResult'] = clust_info['results']
 
         flagged_idx = self.__eval_misclassed(results_df)
 
-        self.__write_to_files(results_df, class_info, clust_info, flagged_idx)
+        results_path, metadata_path = self.__get_file_paths()
+        self.__write_to_files(results_df, class_info, clust_info, flagged_idx, results_path, metadata_path)
 
-        # TODO: write results to UI, make graph for UI
+        # TODO: make graph for UI, offer file download
         
-        return None, flagged_idx
+        return None, flagged_idx, (results_path, metadata_path)
     
     def __eval_misclassed(self, results_df):
         flagged_idx = []
@@ -159,10 +160,8 @@ class REDEFINE:
                 results_df.at[idx, 'Flagged'] = True
         return flagged_idx
     
-    def __write_to_files(self, results_df, class_info, clust_info, flagged_idx):
+    def __write_to_files(self, results_df, class_info, clust_info, flagged_idx, results_path, metadata_path):
         
-        results_path, metadata_path = self.__get_file_paths()
-
         # Results file
         results_df.to_csv(results_path)
 

@@ -49,6 +49,8 @@ class App:
             st.session_state.run_err = None
         if 'run_results' not in st.session_state:
             st.session_state.run_results = None
+        if 'run_files' not in st.session_state:
+            st.session_state.run_files = None
 
         if 'raw_toggle' not in st.session_state:
             st.session_state.raw_toggle = False
@@ -163,7 +165,7 @@ class App:
         print("Run!")
         classifier = st.session_state.classifier_input
         cluster = st.session_state.cluster_input
-        err, results = st.session_state.redefine.run_redefine(classifier,
+        err, results, files = st.session_state.redefine.run_redefine(classifier,
                                                         st.session_state.param_dict[classifier],
                                                         cluster,
                                                         st.session_state.param_dict[cluster],
@@ -171,6 +173,7 @@ class App:
         
         st.session_state.run_err = err
         st.session_state.run_results = results
+        st.session_state.run_files = files
         return
     
     def __test_func(self, loc):
@@ -373,7 +376,24 @@ class App:
         results_text = col2.empty()
         if st.session_state.run_results is not None:
             run_results = str(st.session_state.run_results).replace("'", '').replace('[', '').replace(']','')
-            results_text.write(f"Potentially misclassified points: {run_results}")
+            results_text.write(f"{self.__STRINGS['Results_Text']} {run_results}")
+
+        results_file1 = col2.empty()
+        results_file2 = col2.empty()
+        if st.session_state.run_files is not None:
+            result_f = open(st.session_state.run_files[0], 'r')
+            metadata_f = open(st.session_state.run_files[1], 'r')
+
+            results_file1.download_button(label = self.__STRINGS['Download_Results'],
+                                          data = result_f,
+                                          file_name = 'results.csv')
+            
+            results_file2.download_button(label = self.__STRINGS['Download_Metadata'],
+                                          data = metadata_f,
+                                          file_name = 'metadata.txt')
+            
+            result_f.close()
+            metadata_f.close()
 
         ########## Raw Data Toggle ##########
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
