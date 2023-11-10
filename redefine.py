@@ -147,7 +147,8 @@ class REDEFINE:
         results_path, metadata_path = self.__get_file_paths()
         self.__write_to_files(results_df, class_info, clust_info, flagged_idx, results_path, metadata_path)
 
-        # TODO: make graph for UI, offer file download
+        # TODO: make graph for UI
+        # pca / tsne
         
         return None, flagged_idx, (results_path, metadata_path)
     

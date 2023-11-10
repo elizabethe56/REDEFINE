@@ -408,9 +408,7 @@ class App:
         
         ###### TEMP ######
         
-
-
-        col2.write(st.session_state)
+        # col2.write(st.session_state)
 
 
 if __name__ == '__main__':
