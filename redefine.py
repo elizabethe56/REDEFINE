@@ -2,15 +2,8 @@ import numpy as np
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.cluster import KMeans
-
-# TODO:
-# Replicability? How to use random states without making it too clunky?
-# Is it better to keep classifier/cluster alg separate, or combine them?
-    # Will lead to class/clust flags and more if statements for diverging paths
-# What to do when the clustering algorithm fails hard enough to group two clusters and split the other?
-# Should we be doing PCA?
 
 class REDEFINE:
     def __init__(self, data, target_col, id_col):
@@ -24,7 +17,7 @@ class REDEFINE:
                           "Min-Max" : MinMaxScaler,
                           "Absolute Max" : MaxAbsScaler,
                           "Robust" : RobustScaler}
-        self.__MODELS = {"Nearest Neighbor" : NearestNeighbors,
+        self.__MODELS = {"Nearest Neighbor" : KNeighborsClassifier,
                          "Random Forest" : RandomForestClassifier,
                          "KMeans" : KMeans}
         
@@ -42,40 +35,81 @@ class REDEFINE:
         data_cols.remove(id_col)
         self.__X = data[data_cols].values
     
-    def __clean_params(self, params):
-        return { key:self.__str_to_num(val) 
-                 for (key, val) in params.items() 
-                 if (val != "") and (val is not None) }
+    def __clean_params(self, model_str, params):
+        # Remove empty parameters and convert strings to numbers where necessary
+        clean_param = { key:self.__str_to_num(val) 
+                       for (key, val) in params.items() 
+                       if (val != "") and (val is not None) }
+        # get all possible model parameters
+        model_params = self.__MODELS[model_str]().get_params().keys()
 
-    def validate_class_clust(self, 
-                            model_str : str, 
-                            params : dict, 
-                            scaler_str : str,
-                            model_type : str
-                            ) -> (str, float):
+        # See if random_state is a parameter, set seed for replicability
+        if 'random_state' in model_params:
+            random_seed = self.__get_random_seed()
+            clean_param['random_state'] = random_seed
 
-        params = self.__clean_params(params)
-
-        try:
-            # "Nearest Neighbor", "Random Forest"
-            model = self.__MODELS[model_str](**params)
-            model.fit(self.__X[0:len(self.__Y_names) + 1], self.__Y[0:len(self.__Y_names) + 1])
-        except Exception as e:
-            return str(e), None
+        # See if n_clusters is a parameter, set to len of Y_names
+        if 'n_clusters' in model_params:
+            clean_param['n_clusters'] = len(self.__Y_names)
         
-        scaler = self.__SCALERS[scaler_str]()
+        # set n_init for KMeans
+        if 'n_init' in model_params:
+            clean_param['n_init'] = 20
+
+        return clean_param
+
+    def validate_class_clust(self,
+                       model_str : str, 
+                       params : dict, 
+                       scaler_str : str,
+                       model_type : str
+                       ) -> (str, float):
+        
+        info = {'model_str' : model_str, 
+                'scaler_str' : scaler_str, 
+                'error' : None, 
+                'score' : None}
+
+        clean_params = self.__clean_params(model_str, params)
+        info['model_params'] = clean_params
 
         try:
-            results = self.__doKFold(model, scaler, model_type)
-            return None, results
-        except KeyError as e:
-            return "KeyError: Check the number of clusters", None
+            model = self.__MODELS[model_str](**clean_params)
+            if scaler_str == "None":
+                scaler = None
+            else:
+                scaler = self.__SCALERS[scaler_str]()
+
+            if model_type == 'classifier':
+                score = self.__doKFold(model, scaler)
+            else:
+                score = self.__doClustering(model, scaler)
+            
+            info['score'] = score
+        except Exception as e:
+            info['error'] = str(e)
+        
+        return info
     
-    def __doKFold(self, model, scaler, model_type):
+    def run_redefine(self,
+                     class_str : str,
+                     class_params : dict,
+                     clust_str : str,
+                     clust_params : dict,
+                     scaler_str : str
+                     ):
+        
+        return
+
+    
+    def __doKFold(self, model, scaler):
         n = len(self.__X)
         idxs = np.linspace(0, n, self.__kfolds+1).astype(int)
         idx = np.arange(0, n)
-        np.random.shuffle(idx)
+
+        self.__kf_random_seed = self.__get_random_seed()
+        rs = np.random.RandomState(self.__kf_random_seed)
+        rs.shuffle(idx)
 
         x = self.__X.copy()[idx]
         y = self.__Y.copy()[idx]
@@ -92,34 +126,39 @@ class REDEFINE:
             ytest = y[idx1:idx2]
             ytrain = np.concatenate([y[idxs[0]:idx1], y[idx2:idxs[-1]]])
 
-            scale = scaler
-            xtrain_scale = scale.fit_transform(xtrain)
-            xtest_scale = scale.transform(xtest)
+            if scaler is not None:
+                xtrain = scaler.fit_transform(xtrain)
+                xtest = scaler.transform(xtest)
 
-            m = model
-
-            m.fit(xtrain_scale, ytrain)
-            yhat = m.predict(xtest_scale)
-
-            # relabeling for clustering
-            if model_type == 'cluster':
-                yhat_train = m.predict(xtrain_scale)
-                label_map = {}
-                for i in range(len(self.__Y_names)):
-                    where_i = np.where(ytrain == self.__Y_names[i])
-                    val_i = np.bincount(yhat_train[where_i]).argmax()
-                    label_map[val_i] = self.__Y_names[i]
-
-                if len(label_map) == len(self.__Y_names):
-                    yhat = np.vectorize(label_map.__getitem__)(yhat)
+            model.fit(xtrain, ytrain)
+            yhat = model.predict(xtest)
             
             accuracy_scores[k] = self.__accuracy_score(ytest, yhat)
             
         return np.mean(accuracy_scores)
 
-    def __accuracy_score(self, ytest, yhat):
-        nz = np.flatnonzero(ytest == yhat)
-        return len(nz)/len(ytest)
+    def __doClustering(self,  model, scaler):
+        x = self.__X.copy()
+        y = self.__Y.copy()
+        
+        if scaler is not None:
+            x = scaler.fit_transform(self.__X)
+        
+        yhat = model.fit_predict(x)
+
+        # Relabel cluster names
+        label_map = {}
+
+        for i in range(len(self.__Y_names)):
+            where_i = np.where(y == self.__Y_names[i])
+            val_i = np.bincount(yhat[where_i]).argmax()
+            label_map[val_i] = self.__Y_names[i]
+
+        if len(label_map) == len(self.__Y_names):
+            yhat = np.vectorize(label_map.__getitem__)(yhat)
+            return self.__accuracy_score(y, yhat)
+        else:
+            raise Exception("Model did not find the expected number of clusters.")
         
     # Misc
     def __str_to_num(self, n):
@@ -130,6 +169,13 @@ class REDEFINE:
                 return float(n)
             except:
                 return n
+    
+    def __get_random_seed(self):
+        return np.random.randint(0,100000000)
+    
+    def __accuracy_score(self, ytest, yhat):
+        nz = np.flatnonzero(ytest == yhat)
+        return len(nz)/len(ytest)
 
     # Getters
     def get_X(self):

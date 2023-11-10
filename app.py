@@ -7,14 +7,14 @@ from redefine import REDEFINE
 
 st.set_page_config(layout='wide')
 
-# TODO: add tooltips to UI inputs
+# TODO: add tooltips/help to UI inputs
 
 class App:
 
     with open('strings.txt', 'r') as f:
         __STRINGS = json.load(f)
 
-    DEMO_DATA_PATH = './data/iris_true.csv'
+    DEMO_DATA_PATH = './data/iris_modified.csv'
 
     def __init__(self):
         # Preset session states; Used to preserve states on reruns/button pushes
@@ -134,30 +134,21 @@ class App:
         Inputs:
             classifier: name of classifier model
         '''
-        err, res = st.session_state.redefine.validate_class_clust(model, 
+        info = st.session_state.redefine.validate_class_clust(model, 
                                                                 st.session_state.param_dict[model],
                                                                 st.session_state.scaler_input,
                                                                 model_type)
         if model_type == 'classifier':
-            st.session_state.class_results_err = err
-            st.session_state.class_results = res
+            st.session_state.class_results_err = info['error']
+            st.session_state.class_results = info['score']
         elif model_type == 'cluster':
-            st.session_state.clust_results_err = err
-            st.session_state.clust_results = res
+            st.session_state.clust_results_err = info['error']
+            st.session_state.clust_results = info['score']
         return
     
-    # def __validate_cluster(self, cluster):
-    #     '''
-    #     Runs a 10-fold cross validation with the chosen cluster algorithm and hyperparameters.
-    #     Inputs:
-    #         model: name of cluster algorithm
-    #     '''
-    #     err, res = st.session_state.redefine.validate_cluster_alg(cluster, 
-    #                                                    st.session_state.param_dict[cluster],
-    #                                                    st.session_state.scaler_input)
-    #     st.session_state.clust_results_err = err
-    #     st.session_state.clust_results = res
-    #     return
+    def __run(self):
+        print("Run!")
+        return
         
     def window(self):
         '''
@@ -252,7 +243,7 @@ class App:
             ########## Scaler Selector ##########
             scaler_entry = col1.radio(self.__STRINGS['Scaler_Entry'],
                                       options = self.__STRINGS['Scaler_Options'],
-                                      index = 1,
+                                      index = 0,
                                       key = 'scaler_input',
                                       horizontal = True)
 
@@ -278,7 +269,7 @@ class App:
                     except:
                         value = None
                     
-                    temp = params[i].text_input(param_name, value)
+                    temp = params[i].text_input(label = param_name, value = value)
                     param_inputs[param_name] = temp
 
                 st.session_state.param_dict[classifier] = param_inputs
@@ -336,7 +327,12 @@ class App:
                 elif st.session_state.clust_results is not None:
                     validate_clust_res.write(f"Accuracy Score: {st.session_state.clust_results}")
         # endregion
-
+            if (st.session_state.classifier_input != self.__STRINGS['Default_Selectbox'][0]) and \
+                (st.session_state.cluster_input != self.__STRINGS['Default_Selectbox'][0]):
+                col1.markdown('-----')
+                run_button = col1.button(self.__STRINGS['Run_Button'],
+                                        key = 'run_button',
+                                        on_click=self.__run)
         # Results
         # region
         ########## Raw Data Toggle ##########
