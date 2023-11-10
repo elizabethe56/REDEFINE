@@ -103,7 +103,7 @@ class REDEFINE:
 
         except Exception as e:
             info['error'] = str(e)
-        info['runtime'] = t0 = dt.now()
+        info['runtime'] = dt.now() - t0
         return info
     
     def run_redefine(self,
@@ -114,7 +114,7 @@ class REDEFINE:
                      scaler_str : str
                      ):
         
-        results_df = pd.DataFrame(columns=['Label','ClassificationResult', 'ClusterResult'], index=self.__IDs)
+        results_df = pd.DataFrame(columns=['Label','ClassificationResult', 'ClusterResult', 'Flagged'], index=self.__IDs)
         results_df['Label'] = self.__Y
 
         # Run Classifier
@@ -138,13 +138,36 @@ class REDEFINE:
         if clust_info['error'] is None:
             results_df['ClusterResult'] = clust_info['results']
 
-        # Write To Files        
+        flagged_idx = self.__eval_misclassed(results_df)
+
+        self.__write_to_files(results_df, class_info, clust_info, flagged_idx)
+
+        # TODO: write results to UI, make graph for UI
+
+        return results_df
+    
+    def __eval_misclassed(self, results_df):
+        flagged_idx = []
+        for idx, row in results_df.iterrows():
+            if (row['ClassificationResult'] == row['ClusterResult']) and \
+            (row['Label'] != row['ClassificationResult']):
+                flagged_idx.append(idx)
+                results_df.at[idx, 'Flagged'] = True
+        return flagged_idx
+    
+    def __write_to_files(self, results_df, class_info, clust_info, flagged_idx):
+        
         results_path, metadata_path = self.__get_file_paths()
 
+        # Results file
         results_df.to_csv(results_path)
 
+        # Metadata file
         with open(metadata_path, 'w') as f:
             f.write('Metadata\n\n')
+
+            f.write(f"Flagged Items: {flagged_idx}\n\n")
+
             f.write(f"KFold Random Seed: {self.__kf_random_seed}\n\n")
             f.write("Classifier:\n")
             for (key, val) in class_info.items():
@@ -155,9 +178,8 @@ class REDEFINE:
             for (key, val) in clust_info.items():
                 if key != 'results':
                     f.write(f"{key}: {val}\n")
+        return
 
-        return results_df
-    
     def __get_file_paths(self):
 
         results_path = os.path.join(self.__PATH_OUT, f"results_{self.__file_name}_{self.__timestamp()}.csv")
