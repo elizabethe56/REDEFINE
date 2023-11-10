@@ -124,9 +124,11 @@ class REDEFINE:
                                     model_type = "classifier",
                                     store_results = True)
         
-        if class_info['error'] is None:
+        if class_info['error'] is not None:
+            return class_info['error'], None
+        else:
             for idx, res in class_info['results']:
-                results_df.at[idx, 'ClassificationResult'] = res    
+                results_df.at[idx, 'ClassificationResult'] = res
         
         # Run Cluster Alg
         clust_info = self.run_model(model_str = clust_str,
@@ -135,7 +137,9 @@ class REDEFINE:
                                     model_type = "cluster",
                                     store_results = True)
         
-        if clust_info['error'] is None:
+        if clust_info['error'] is not None:
+            return clust_info['error'], None
+        else:
             results_df['ClusterResult'] = clust_info['results']
 
         flagged_idx = self.__eval_misclassed(results_df)
@@ -143,8 +147,8 @@ class REDEFINE:
         self.__write_to_files(results_df, class_info, clust_info, flagged_idx)
 
         # TODO: write results to UI, make graph for UI
-
-        return results_df
+        
+        return None, flagged_idx
     
     def __eval_misclassed(self, results_df):
         flagged_idx = []
@@ -166,7 +170,7 @@ class REDEFINE:
         with open(metadata_path, 'w') as f:
             f.write('Metadata\n\n')
 
-            f.write(f"Flagged Items: {flagged_idx}\n\n")
+            f.write(f"Flagged Points: {flagged_idx}\n\n")
 
             f.write(f"KFold Random Seed: {self.__kf_random_seed}\n\n")
             f.write("Classifier:\n")

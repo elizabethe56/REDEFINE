@@ -26,5 +26,6 @@
     "Cluster_Options":["(Select)","KMeans"],
     "Cluster_Params":{"KMeans":["max_iter", "tol"]},
     "Run_Button":"Run!",
+    "Header3":"Results",
     "Show_Data_Toggle":"Show Raw Data"
 }

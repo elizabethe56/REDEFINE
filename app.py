@@ -45,6 +45,11 @@ class App:
         if 'clust_results' not in st.session_state:
             st.session_state.clust_results = None
 
+        if 'run_err' not in st.session_state:
+            st.session_state.run_err = None
+        if 'run_results' not in st.session_state:
+            st.session_state.run_results = None
+
         if 'raw_toggle' not in st.session_state:
             st.session_state.raw_toggle = False
 
@@ -115,13 +120,13 @@ class App:
         '''
         
         @st.cache_data
-        def create_redefine_object(data, target_col, id_col):
-            return REDEFINE(data, target_col, id_col)
+        def create_redefine_object(file_name, data, target_col, id_col):
+            return REDEFINE(file_name, data, target_col, id_col)
         
         # If data and columns are valid:
         if st.session_state.has_data and st.session_state.target_valid and st.session_state.id_valid:
             if st.session_state.demo_toggle:
-                file_name = os.path.basename(self.__DEMO_DATA_PATH())
+                file_name = os.path.basename(self.__DEMO_DATA_PATH)
             else:
                 file_name = st.session_path.data_input['name']
 
@@ -131,7 +136,8 @@ class App:
                                                                    st.session_state.target_input,
                                                                    st.session_state.id_input)
                 st.session_state.data_set = True
-            except:
+            except Exception as e:
+                print(e)
                 return
         return
     
@@ -157,12 +163,14 @@ class App:
         print("Run!")
         classifier = st.session_state.classifier_input
         cluster = st.session_state.cluster_input
-        result = st.session_state.redefine.run_redefine(classifier,
+        err, results = st.session_state.redefine.run_redefine(classifier,
                                                         st.session_state.param_dict[classifier],
                                                         cluster,
                                                         st.session_state.param_dict[cluster],
                                                         st.session_state.scaler_input)
-
+        
+        st.session_state.run_err = err
+        st.session_state.run_results = results
         return
     
     def __test_func(self, loc):
@@ -198,7 +206,7 @@ class App:
                                        disabled = st.session_state.demo_toggle)
 
         if demo_data:
-            has_data, data, data_err_msg = self.__load_data(self.DEMO_DATA_PATH)
+            has_data, data, data_err_msg = self.__load_data(self.__DEMO_DATA_PATH)
             st.session_state.target_input = self.__STRINGS['Data_Demo_Cols']['target']
             st.session_state.id_input = self.__STRINGS['Data_Demo_Cols']['id']
         else:
@@ -351,8 +359,22 @@ class App:
                 run_button = col1.button(self.__STRINGS['Run_Button'],
                                         key = 'run_button',
                                         on_click=self.__run)
+            
+            run_error = col1.empty()
+
+            if st.session_state.run_err is not None:
+                run_error.error(st.session_state.run_err)
+
         # Results
         # region
+
+        col2.subheader(self.__STRINGS['Header3'])
+        
+        results_text = col2.empty()
+        if st.session_state.run_results is not None:
+            run_results = str(st.session_state.run_results).replace("'", '').replace('[', '').replace(']','')
+            results_text.write(f"Potentially misclassified points: {run_results}")
+
         ########## Raw Data Toggle ##########
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
                                key = 'raw_toggle',
