@@ -1,4 +1,7 @@
 import numpy as np
+import pandas as pd
+import os
+from datetime import datetime as dt
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -6,12 +9,14 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.cluster import KMeans
 
 class REDEFINE:
-    def __init__(self, data, target_col, id_col):
+    def __init__(self, file_name, data, target_col, id_col):
         # set all data variables
         self.__clean_data(data, target_col, id_col)
+        self.__file_name = file_name.split('.')[0]
 
         # Constants
         self.__kfolds = 10
+        self.__PATH_OUT = './output/'
 
         self.__SCALERS = {"Standard" : StandardScaler,
                           "Min-Max" : MinMaxScaler,
@@ -24,7 +29,11 @@ class REDEFINE:
         return
     
     def __clean_data(self, data, target_col, id_col):
-        # Separate data
+
+        if id_col == "(None)":
+            data = data.reset_index()
+            id_col = "index"
+
         self.__IDs = data[id_col]
         Y = data[target_col]
         self.__Y_names = Y.unique()
@@ -34,6 +43,7 @@ class REDEFINE:
         data_cols.remove(target_col)
         data_cols.remove(id_col)
         self.__X = data[data_cols].values
+        return
     
     def __clean_params(self, model_str, params):
         # Remove empty parameters and convert strings to numbers where necessary
@@ -58,21 +68,24 @@ class REDEFINE:
 
         return clean_param
 
-    def validate_class_clust(self,
-                       model_str : str, 
-                       params : dict, 
-                       scaler_str : str,
-                       model_type : str
-                       ) -> (str, float):
+    def run_model(self,
+                  model_str : str, 
+                  params : dict, 
+                  scaler_str : str,
+                  model_type : str,
+                  store_results : bool = False
+                  ) -> (str, float):
         
-        info = {'model_str' : model_str, 
-                'scaler_str' : scaler_str, 
+        info = {'model_name' : model_str, 
+                'scaler_name' : scaler_str, 
                 'error' : None, 
-                'score' : None}
+                'score' : None,
+                'results' : None}
 
         clean_params = self.__clean_params(model_str, params)
         info['model_params'] = clean_params
-
+        
+        t0 = dt.now()
         try:
             model = self.__MODELS[model_str](**clean_params)
             if scaler_str == "None":
@@ -81,14 +94,16 @@ class REDEFINE:
                 scaler = self.__SCALERS[scaler_str]()
 
             if model_type == 'classifier':
-                score = self.__doKFold(model, scaler)
+                score, results = self.__doKFold(model, scaler, store_results)
             else:
-                score = self.__doClustering(model, scaler)
+                score, results = self.__doClustering(model, scaler)
             
             info['score'] = score
+            info['results'] = results
+
         except Exception as e:
             info['error'] = str(e)
-        
+        info['runtime'] = t0 = dt.now()
         return info
     
     def run_redefine(self,
@@ -99,10 +114,62 @@ class REDEFINE:
                      scaler_str : str
                      ):
         
+        results_df = pd.DataFrame(columns=['Label','ClassificationResult', 'ClusterResult'], index=self.__IDs)
+        results_df['Label'] = self.__Y
+
+        # Run Classifier
+        class_info = self.run_model(model_str = class_str,
+                                    params = class_params, 
+                                    scaler_str = scaler_str,
+                                    model_type = "classifier",
+                                    store_results = True)
+        
+        if class_info['error'] is None:
+            for idx, res in class_info['results']:
+                results_df.at[idx, 'ClassificationResult'] = res    
+        
+        # Run Cluster Alg
+        clust_info = self.run_model(model_str = clust_str,
+                                    params = clust_params, 
+                                    scaler_str = scaler_str,
+                                    model_type = "cluster",
+                                    store_results = True)
+        
+        if clust_info['error'] is None:
+            results_df['ClusterResult'] = clust_info['results']
+
+        # Write To Files        
+        results_path, metadata_path = self.__get_file_paths()
+
+        results_df.to_csv(results_path)
+
+        with open(metadata_path, 'w') as f:
+            f.write('Metadata\n\n')
+            f.write(f"KFold Random Seed: {self.__kf_random_seed}\n\n")
+            f.write("Classifier:\n")
+            for (key, val) in class_info.items():
+                if key != 'results':
+                    f.write(f"{key}: {val}\n")
+            f.write("\n")
+            f.write("Cluster Algorithm:\n")
+            for (key, val) in clust_info.items():
+                if key != 'results':
+                    f.write(f"{key}: {val}\n")
+
+        return results_df
+    
+    def __get_file_paths(self):
+
+        results_path = os.path.join(self.__PATH_OUT, f"results_{self.__file_name}_{self.__timestamp()}.csv")
+        metadata_path = os.path.join(self.__PATH_OUT, f"metadata_{self.__file_name}_{self.__timestamp()}.txt")
+
+        return results_path, metadata_path
+    
+    def __make_graph(self):
         return
 
     
-    def __doKFold(self, model, scaler):
+    def __doKFold(self, model, scaler, store_results):
         n = len(self.__X)
         idxs = np.linspace(0, n, self.__kfolds+1).astype(int)
         idx = np.arange(0, n)
@@ -113,12 +180,18 @@ class REDEFINE:
 
         x = self.__X.copy()[idx]
         y = self.__Y.copy()[idx]
+        ids = self.__IDs.copy()[idx]
 
         accuracy_scores = np.zeros(self.__kfolds)
+
+        id_res = np.zeros(n, dtype='O')
+        yhat_res = np.zeros(n, dtype='O')
 
         for k, i in enumerate(range(1, len(idxs))):
             idx1 = idxs[i-1]
             idx2 = idxs[i]
+
+            idtest = ids[idx1:idx2]
 
             xtest = x[idx1:idx2]
             xtrain = np.concatenate([x[idxs[0]:idx1], x[idx2:idxs[-1]]])
@@ -134,12 +207,17 @@ class REDEFINE:
             yhat = model.predict(xtest)
             
             accuracy_scores[k] = self.__accuracy_score(ytest, yhat)
-            
-        return np.mean(accuracy_scores)
+
+            if store_results:
+                id_res[idx1:idx2] = ids[idx1:idx2]
+                yhat_res[idx1:idx2] = yhat
+
+        return np.mean(accuracy_scores), zip(id_res, yhat_res)
 
     def __doClustering(self,  model, scaler):
         x = self.__X.copy()
         y = self.__Y.copy()
+        ids = self.__IDs.copy()
         
         if scaler is not None:
             x = scaler.fit_transform(self.__X)
@@ -156,9 +234,10 @@ class REDEFINE:
 
         if len(label_map) == len(self.__Y_names):
             yhat = np.vectorize(label_map.__getitem__)(yhat)
-            return self.__accuracy_score(y, yhat)
         else:
             raise Exception("Model did not find the expected number of clusters.")
+        
+        return self.__accuracy_score(y, yhat), yhat
         
     # Misc
     def __str_to_num(self, n):
@@ -176,6 +255,9 @@ class REDEFINE:
     def __accuracy_score(self, ytest, yhat):
         nz = np.flatnonzero(ytest == yhat)
         return len(nz)/len(ytest)
+
+    def __timestamp(self):
+        return str(dt.now()).replace(':','-').replace(' ', '_')
 
     # Getters
     def get_X(self):

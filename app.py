@@ -2,6 +2,7 @@ from __future__ import annotations
 import streamlit as st
 import pandas as pd
 import json
+import os
 
 from redefine import REDEFINE
 
@@ -14,7 +15,7 @@ class App:
     with open('strings.txt', 'r') as f:
         __STRINGS = json.load(f)
 
-    DEMO_DATA_PATH = './data/iris_modified.csv'
+    __DEMO_DATA_PATH = './data/iris_modified.csv'
 
     def __init__(self):
         # Preset session states; Used to preserve states on reruns/button pushes
@@ -119,8 +120,14 @@ class App:
         
         # If data and columns are valid:
         if st.session_state.has_data and st.session_state.target_valid and st.session_state.id_valid:
+            if st.session_state.demo_toggle:
+                file_name = os.path.basename(self.__DEMO_DATA_PATH())
+            else:
+                file_name = st.session_path.data_input['name']
+
             try:
-                st.session_state.redefine = create_redefine_object(st.session_state.data.copy(),
+                st.session_state.redefine = create_redefine_object(file_name,
+                                                                   st.session_state.data.copy(),
                                                                    st.session_state.target_input,
                                                                    st.session_state.id_input)
                 st.session_state.data_set = True
@@ -134,10 +141,10 @@ class App:
         Inputs:
             classifier: name of classifier model
         '''
-        info = st.session_state.redefine.validate_class_clust(model, 
-                                                                st.session_state.param_dict[model],
-                                                                st.session_state.scaler_input,
-                                                                model_type)
+        info = st.session_state.redefine.run_model(model, 
+                                                   st.session_state.param_dict[model],
+                                                   st.session_state.scaler_input,
+                                                   model_type)
         if model_type == 'classifier':
             st.session_state.class_results_err = info['error']
             st.session_state.class_results = info['score']
@@ -148,7 +155,18 @@ class App:
     
     def __run(self):
         print("Run!")
+        classifier = st.session_state.classifier_input
+        cluster = st.session_state.cluster_input
+        result = st.session_state.redefine.run_redefine(classifier,
+                                                        st.session_state.param_dict[classifier],
+                                                        cluster,
+                                                        st.session_state.param_dict[cluster],
+                                                        st.session_state.scaler_input)
+
         return
+    
+    def __test_func(self, loc):
+        loc.write("SUCCESS!")
         
     def window(self):
         '''
@@ -347,6 +365,9 @@ class App:
         # endregion
         
         ###### TEMP ######
+        
+
+
         col2.write(st.session_state)
 
 
