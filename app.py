@@ -51,6 +51,8 @@ class App:
             st.session_state.run_results = None
         if 'run_files' not in st.session_state:
             st.session_state.run_files = None
+        if 'run_plots' not in st.session_state:
+            st.session_state.run_plots = None
 
         if 'raw_toggle' not in st.session_state:
             st.session_state.raw_toggle = False
@@ -130,7 +132,7 @@ class App:
             if st.session_state.demo_toggle:
                 file_name = os.path.basename(self.__DEMO_DATA_PATH)
             else:
-                file_name = st.session_path.data_input['name']
+                file_name = st.session_state.data_input.name
 
             try:
                 st.session_state.redefine = create_redefine_object(file_name,
@@ -165,7 +167,7 @@ class App:
         print("Run!")
         classifier = st.session_state.classifier_input
         cluster = st.session_state.cluster_input
-        err, results, files = st.session_state.redefine.run_redefine(classifier,
+        err, results, files, plots = st.session_state.redefine.run_redefine(classifier,
                                                         st.session_state.param_dict[classifier],
                                                         cluster,
                                                         st.session_state.param_dict[cluster],
@@ -174,6 +176,7 @@ class App:
         st.session_state.run_err = err
         st.session_state.run_results = results
         st.session_state.run_files = files
+        st.session_state.run_plots = plots
         return
     
     def __test_func(self, loc):
@@ -376,7 +379,7 @@ class App:
         results_text = col2.empty()
         if st.session_state.run_results is not None:
             run_results = str(st.session_state.run_results).replace("'", '').replace('[', '').replace(']','')
-            results_text.write(f"{self.__STRINGS['Results_Text']} {run_results}")
+            results_text.write(f"{self.__STRINGS['Results_Text']}\t{run_results}")
 
         results_file1 = col2.empty()
         results_file2 = col2.empty()
@@ -395,6 +398,13 @@ class App:
             result_f.close()
             metadata_f.close()
 
+        show_plot = col2.toggle("Show Plot",
+                               key = 'plot_toggle',
+                               disabled = not st.session_state.has_data)
+
+        if show_plot:
+            col2.bokeh_chart(st.session_state.run_plots, True)
+
         ########## Raw Data Toggle ##########
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
                                key = 'raw_toggle',
@@ -402,13 +412,11 @@ class App:
 
         if raw_data:
             col2.dataframe(st.session_state.data)
-            if st.session_state.data_set:
-                col2.dataframe(st.session_state.redefine.get_X())
         # endregion
         
         ###### TEMP ######
         
-        # col2.write(st.session_state)
+        col2.write(st.session_state)
 
 
 if __name__ == '__main__':

@@ -10,6 +10,7 @@ watchdog = "*"
 scikit-learn = "*"
 tqdm = "*"
 urllib3 = "*"
+bokeh = "==2.4.3"
 
 [dev-packages]
 

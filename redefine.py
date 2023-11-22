@@ -7,6 +7,13 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, Ro
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+
+from bokeh.models import ColumnDataSource, Legend
+from bokeh.plotting import figure
+from bokeh.models import CategoricalColorMapper
+from bokeh.palettes import Accent8
 
 class REDEFINE:
     def __init__(self, file_name, data, target_col, id_col):
@@ -142,15 +149,64 @@ class REDEFINE:
         else:
             results_df['ClusterResult'] = clust_info['results']
 
-        flagged_idx = self.__eval_misclassed(results_df)
+        # Results
+        flagged_ids = self.__eval_misclassed(results_df)
 
         results_path, metadata_path = self.__get_file_paths()
-        self.__write_to_files(results_df, class_info, clust_info, flagged_idx, results_path, metadata_path)
+        self.__write_to_files(results_df, class_info, clust_info, flagged_ids, results_path, metadata_path)
+
+        # TODO: make graph for UI
+        # pca / tsne
+        plot = self.__make_graph(flagged_ids, results_df, scaler_str)
+        
+        return None, flagged_ids, (results_path, metadata_path), plot
+    
+    def run_redefine_test(self,
+                     class_str : str,
+                     class_params : dict,
+                     clust_str : str,
+                     clust_params : dict,
+                     scaler_str : str
+                     ):
+        
+        results_df = pd.DataFrame(columns=['Label','ClassificationResult', 'ClusterResult', 'Flagged'], index=self.__IDs)
+        results_df['Label'] = self.__Y
+
+        # Run Classifier
+        class_info = self.run_model(model_str = class_str,
+                                    params = class_params, 
+                                    scaler_str = scaler_str,
+                                    model_type = "classifier",
+                                    store_results = True)
+        
+        if class_info['error'] is not None:
+            return class_info['error'], None, None
+        else:
+            for idx, res in class_info['results']:
+                results_df.at[idx, 'ClassificationResult'] = res
+        
+        # Run Cluster Alg
+        clust_info = self.run_model(model_str = clust_str,
+                                    params = clust_params, 
+                                    scaler_str = scaler_str,
+                                    model_type = "cluster",
+                                    store_results = True)
+        
+        if clust_info['error'] is not None:
+            return clust_info['error'], None, None
+        else:
+            results_df['ClusterResult'] = clust_info['results']
+
+        # Results
+        self.flagged_ids = self.__eval_misclassed(results_df)
+        self.results_df = results_df
+        # results_path, metadata_path = self.__get_file_paths()
+        # self.__write_to_files(results_df, class_info, clust_info, flagged_idx, results_path, metadata_path)
 
         # TODO: make graph for UI
         # pca / tsne
         
-        return None, flagged_idx, (results_path, metadata_path)
+        return None #, flagged_idx (results_path, metadata_path)
     
     def __eval_misclassed(self, results_df):
         flagged_idx = []
@@ -161,7 +217,7 @@ class REDEFINE:
                 results_df.at[idx, 'Flagged'] = True
         return flagged_idx
     
-    def __write_to_files(self, results_df, class_info, clust_info, flagged_idx, results_path, metadata_path):
+    def __write_to_files(self, results_df, class_info, clust_info, flagged_ids, results_path, metadata_path):
         
         # Results file
         results_df.to_csv(results_path)
@@ -170,7 +226,7 @@ class REDEFINE:
         with open(metadata_path, 'w') as f:
             f.write('Metadata\n\n')
 
-            f.write(f"Flagged Points: {flagged_idx}\n\n")
+            f.write(f"Flagged Points: {flagged_ids}\n\n")
 
             f.write(f"KFold Random Seed: {self.__kf_random_seed}\n\n")
             f.write("Classifier:\n")
@@ -191,8 +247,78 @@ class REDEFINE:
 
         return results_path, metadata_path
     
-    def __make_graph(self):
-        return
+    def __make_graphs(self, flagged_ids, results_df):
+        # scale
+        # pca
+        # make pca plot
+        # tsne
+        # make tsne plot
+
+        return #pca_plot, tsne_plot
+
+    def __make_graph(self, flagged_ids, results_df, scaler_str):
+        
+        # scaling + decomp
+        scale = self.__SCALERS[scaler_str]()
+        x_scale = scale.fit_transform(self.__X)
+        pca = PCA(n_components=2)
+        pca = PCA(n_components=2, random_state=1)
+        x_pca = pca.fit_transform(x_scale)
+
+        TOOLTIPS = [
+            ("ID", "@id"),
+            ("Original Label", "@label"),
+            ("Supervised Label", "@sup_label"),
+            ("Unsupervised Label", "@unsup_label")
+        ]
+
+        p = figure(width=400, height=500,
+                tooltips = TOOLTIPS)
+        
+        flag_idxs = np.nonzero(np.array(flagged_ids)[:, None] == np.array(self.__IDs))[1]
+
+        x_true = np.delete(x_pca, flag_idxs, axis=0)
+        results_true = results_df.copy().drop(flagged_ids, axis=0)
+
+        full_data = ColumnDataSource(dict(
+            x1=x_true[:,0],
+            x2=x_true[:,1],
+            label=results_true['Label'],
+            sup_label=results_true['ClassificationResult'],
+            unsup_label=results_true['ClusterResult'],
+            id = results_true.index
+        ))
+
+        color_mapper = CategoricalColorMapper(factors=self.__Y_names, palette=Accent8)
+
+        true_points = p.circle(x='x1', y='x2', source=full_data, size=7, alpha=0.8,
+                            color={'field': 'label', 'transform': color_mapper},
+                            legend_field='label')
+
+        # flagged points
+        flagged_X = x_pca[flag_idxs]
+        flagged_results = results_df[results_df.index.isin(flagged_ids)]
+
+        flagged_data = ColumnDataSource(dict(
+            x1=flagged_X[:,0],
+            x2=flagged_X[:,1],
+            label=flagged_results['Label'],
+            sup_label=flagged_results['ClassificationResult'],
+            unsup_label=flagged_results['ClusterResult'],
+            id = flagged_results.index
+        ))
+
+        misclass_points = p.circle(x='x1', y='x2', source=flagged_data, size=7, alpha=0.8,
+                                color='red', legend_label='Potentially Misclassified Points')
+
+        p.legend.visible = False
+
+        leg = Legend(items=p.legend.items, location='left')
+
+        p.add_layout(leg, 'below')
+
+        p.title.text = "Plot"
+        return p
 
     
     def __doKFold(self, model, scaler, store_results):
