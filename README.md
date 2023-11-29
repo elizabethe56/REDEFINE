@@ -10,6 +10,6 @@ I plan to finish the plot and provide the option to see the data with PCA or tSN
 
 ### Access:
 Global access*: https://redefine-app.streamlit.app/
-* This app will sometimes deactivate due to inactivity
+*This app will sometimes deactivate due to inactivity
 
 Local access: run ```streamlit run app.py``` in the terminal
