@@ -100,7 +100,7 @@ class REDEFINE:
             else:
                 scaler = self.__SCALERS[scaler_str]()
 
-            if model_type == 'classifier':
+            if model_type == 'supervised':
                 score, results = self.__doKFold(model, scaler, store_results)
             else:
                 score, results = self.__doClustering(model, scaler)
@@ -114,40 +114,40 @@ class REDEFINE:
         return info
     
     def run_redefine(self,
-                     class_str : str,
-                     class_params : dict,
-                     clust_str : str,
-                     clust_params : dict,
+                     super_str : str,
+                     super_params : dict,
+                     unsup_str : str,
+                     unsup_params : dict,
                      scaler_str : str
                      ):
         
-        results_df = pd.DataFrame(columns=['Label','ClassificationResult', 'ClusterResult', 'Flagged'], index=self.__IDs)
+        results_df = pd.DataFrame(columns=['Label','SupervisedResult', 'UnsupervisedResult', 'Flagged'], index=self.__IDs)
         results_df['Label'] = self.__Y
 
-        # Run Classifier
-        class_info = self.run_model(model_str = class_str,
-                                    params = class_params, 
+        # Run Supervised
+        super_info = self.run_model(model_str = super_str,
+                                    params = super_params, 
                                     scaler_str = scaler_str,
-                                    model_type = "classifier",
+                                    model_type = "supervised",
                                     store_results = True)
         
-        if class_info['error'] is not None:
-            return class_info['error'], None, None
+        if super_info['error'] is not None:
+            return super_info['error'], None, None
         else:
-            for idx, res in class_info['results']:
-                results_df.at[idx, 'ClassificationResult'] = res
+            for idx, res in super_info['results']:
+                results_df.at[idx, 'SupervisedResult'] = res
         
         # Run Cluster Alg
-        clust_info = self.run_model(model_str = clust_str,
-                                    params = clust_params, 
+        unsup_info = self.run_model(model_str = unsup_str,
+                                    params = unsup_params, 
                                     scaler_str = scaler_str,
-                                    model_type = "cluster",
+                                    model_type = "unsupervised",
                                     store_results = True)
         
-        if clust_info['error'] is not None:
-            return clust_info['error'], None, None
+        if unsup_info['error'] is not None:
+            return unsup_info['error'], None, None
         else:
-            results_df['ClusterResult'] = clust_info['results']
+            results_df['UnsupervisedResult'] = unsup_info['results']
 
         # Results
         flagged_ids = self.__eval_misclassed(results_df)
@@ -159,20 +159,20 @@ class REDEFINE:
         # pca / tsne
         plots, plot_random = self.__make_plots(flagged_ids, results_df, scaler_str)
 
-        self.__write_to_files(results_df, class_info, clust_info, flagged_ids, plot_random, results_path, metadata_path)
+        self.__write_to_files(results_df, super_info, unsup_info, flagged_ids, plot_random, results_path, metadata_path)
         
         return None, flagged_ids, (results_path, metadata_path), plots
     
     def __eval_misclassed(self, results_df):
         flagged_idx = []
         for idx, row in results_df.iterrows():
-            if (row['ClassificationResult'] == row['ClusterResult']) and \
-            (row['Label'] != row['ClassificationResult']):
+            if (row['SupervisedResult'] == row['UnsupervisedResult']) and \
+            (row['Label'] != row['SupervisedResult']):
                 flagged_idx.append(idx)
                 results_df.at[idx, 'Flagged'] = True
         return flagged_idx
     
-    def __write_to_files(self, results_df, class_info, clust_info, flagged_ids, plot_random, results_path, metadata_path):
+    def __write_to_files(self, results_df, super_info, unsup_info, flagged_ids, plot_random, results_path, metadata_path):
         
         # Results file
         results_df.to_csv(results_path)
@@ -184,13 +184,13 @@ class REDEFINE:
             f.write(f"Flagged Points: {flagged_ids}\n\n")
 
             f.write(f"KFold Random Seed: {self.__kf_random_seed}\n\n")
-            f.write("Classifier:\n")
-            for (key, val) in class_info.items():
+            f.write("Supervised Model:\n")
+            for (key, val) in super_info.items():
                 if key != 'results':
                     f.write(f"{key}: {val}\n")
             f.write("\n")
-            f.write("Cluster Algorithm:\n")
-            for (key, val) in clust_info.items():
+            f.write("Unsupervised Model:\n")
+            for (key, val) in unsup_info.items():
                 if key != 'results':
                     f.write(f"{key}: {val}\n")
 
@@ -238,7 +238,7 @@ class REDEFINE:
         ]
 
         p = figure(width=400, height=500,
-                tooltips = TOOLTIPS)
+                   tooltips = TOOLTIPS)
 
         p.title.text = plot_type.upper()
         p.axis.visible = False
@@ -252,8 +252,8 @@ class REDEFINE:
             x1=x_true[:,0],
             x2=x_true[:,1],
             label=results_true['Label'],
-            sup_label=results_true['ClassificationResult'],
-            unsup_label=results_true['ClusterResult'],
+            sup_label=results_true['SupervisedResult'],
+            unsup_label=results_true['UnsupervisedResult'],
             id = results_true.index
         ))
 
@@ -271,8 +271,8 @@ class REDEFINE:
             x1=flagged_X[:,0],
             x2=flagged_X[:,1],
             label=flagged_results['Label'],
-            sup_label=flagged_results['ClassificationResult'],
-            unsup_label=flagged_results['ClusterResult'],
+            sup_label=flagged_results['SupervisedResult'],
+            unsup_label=flagged_results['UnsupervisedResult'],
             id = flagged_results.index
         ))
 

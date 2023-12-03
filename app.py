@@ -1,13 +1,14 @@
 from __future__ import annotations
 import streamlit as st
 import pandas as pd
+import numpy as np
 import json
 import os
 
-from redefine import REDEFINE
+from bokeh.embed import file_html
+from bokeh.resources import CDN
 
-from bokeh.io import curdoc
-from bokeh.plotting import figure, output_file, show
+from redefine import REDEFINE
 
 st.set_page_config(layout='wide')
 
@@ -38,15 +39,15 @@ class App:
         if 'param_dict' not in st.session_state:
             st.session_state.param_dict = {}
         
-        if 'class_results_err' not in st.session_state:
-            st.session_state.class_results_err = None
-        if 'class_results' not in st.session_state:
-            st.session_state.class_results = None
+        if 'super_results_err' not in st.session_state:
+            st.session_state.super_results_err = None
+        if 'super_results' not in st.session_state:
+            st.session_state.super_results = None
         
-        if 'clust_results_err' not in st.session_state:
-            st.session_state.clust_results_err = None
-        if 'clust_results' not in st.session_state:
-            st.session_state.clust_results = None
+        if 'unsup_results_err' not in st.session_state:
+            st.session_state.unsup_results_err = None
+        if 'unsup_results' not in st.session_state:
+            st.session_state.unsup_results = None
 
         if 'run_err' not in st.session_state:
             st.session_state.run_err = None
@@ -102,16 +103,24 @@ class App:
 
             if type(file) != str:
                 if file is None:
-                    error = self.__STRINGS['Data_Error_Empty']
+                    error = self.__STRINGS['Data_Entry_Error_Empty']
                 elif file.name.split('.')[-1] != 'csv':
-                    error = self.__STRINGS['Data_Error_Type']
+                    error = self.__STRINGS['Data_Entry_Error_Type']
 
             if error == "":
                 data = pd.read_csv(file)
 
                 if len(data) == 0:
                     data = ""
-                    error = self.__STRINGS['Data_Error_File_Empty']
+                    error = self.__STRINGS['Data_Entry_Error_File_Empty']
+
+                data_map = data.map(np.isreal)
+                num_numeric = sum([bool(data_map[x].all()) for x in data.columns])
+                num_col = len(data.columns)
+                
+                if (num_col - num_numeric) > 2:
+                    data = ""
+                    error = self.__STRINGS['Data_Entry_Error_Nonnumeric']
                 
             if error == "":
                 has_data = True
@@ -148,32 +157,36 @@ class App:
                 return
         return
     
-    def __validate_class_clust(self, model, model_type):
+    def __validate_model(self, 
+                         model : str, 
+                         model_type : str):
         '''
-        Runs a 10-fold cross validation with the chosen classifier model and hyperparameters.
+        Runs either a 10-fold cross validation with the chosen supervsied model and hyperparameters,
+        or evaluates the unsupervised model and hyperparameters
         Inputs:
-            classifier: name of classifier model
+            model: model
+            model_type: string, either 'supervised' or 'unsupervised'
         '''
         info = st.session_state.redefine.run_model(model, 
                                                    st.session_state.param_dict[model],
                                                    st.session_state.scaler_input,
                                                    model_type)
-        if model_type == 'classifier':
-            st.session_state.class_results_err = info['error']
-            st.session_state.class_results = info['score']
-        elif model_type == 'cluster':
-            st.session_state.clust_results_err = info['error']
-            st.session_state.clust_results = info['score']
+        if model_type == 'supervised':
+            st.session_state.super_results_err = info['error']
+            st.session_state.super_results = info['score']
+        elif model_type == 'unsupervised':
+            st.session_state.unsup_results_err = info['error']
+            st.session_state.unsup_results = info['score']
         return
     
     def __run(self):
         print("Run!")
-        classifier = st.session_state.classifier_input
-        cluster = st.session_state.cluster_input
-        err, results, files, plots = st.session_state.redefine.run_redefine(classifier,
-                                                        st.session_state.param_dict[classifier],
-                                                        cluster,
-                                                        st.session_state.param_dict[cluster],
+        supervised = st.session_state.super_input
+        unsupervised = st.session_state.unsup_input
+        err, results, files, plots = st.session_state.redefine.run_redefine(supervised,
+                                                        st.session_state.param_dict[supervised],
+                                                        unsupervised,
+                                                        st.session_state.param_dict[unsupervised],
                                                         st.session_state.scaler_input)
         
         st.session_state.run_err = err
@@ -181,9 +194,6 @@ class App:
         st.session_state.run_files = files
         st.session_state.run_plots = plots
         return
-    
-    def __test_func(self, loc):
-        loc.write("SUCCESS!")
         
     def window(self):
         '''
@@ -200,8 +210,9 @@ class App:
         # Data Input
         # region
         ########## Demo Data ##########
-        demo_data = col1.toggle(self.__STRINGS['Data_Demo'],
+        demo_data = col1.toggle(self.__STRINGS['Demo_Data'],
                                key = 'demo_toggle',
+                               help=self.__STRINGS['Demo_Data_Help'],
                                on_change = self.__to_state_false,
                                args = [['raw_toggle', 'data_set']])
 
@@ -210,16 +221,18 @@ class App:
                                        type = 'csv', 
                                        accept_multiple_files = False,
                                        key = 'data_input',
+                                       help = self.__STRINGS['Data_Entry_Help'],
                                        on_change=self.__to_state_false,
                                        args=[['raw_toggle', 'plot_toggle', 'data_set']],
                                        disabled = st.session_state.demo_toggle)
 
         if demo_data:
             has_data, data, data_err_msg = self.__load_data(self.__DEMO_DATA_PATH)
-            st.session_state.target_input = self.__STRINGS['Data_Demo_Cols']['target']
-            st.session_state.id_input = self.__STRINGS['Data_Demo_Cols']['id']
+            st.session_state.target_input = self.__STRINGS['Demo_Data_Cols']['target']
+            st.session_state.id_input = self.__STRINGS['Demo_Data_Cols']['id']
         else:
             has_data, data, data_err_msg = self.__load_data(data_file)
+        
         st.session_state.has_data = has_data
         st.session_state.data = data
         
@@ -236,6 +249,7 @@ class App:
         target_col = col1.selectbox(self.__STRINGS['Target_Entry'],
                                     options = cols.copy(),
                                     key = 'target_input',
+                                    help = self.__STRINGS['Target_Entry_Help'],
                                     on_change = self.__to_state_false,
                                     args = [['target_valid', 'plot_toggle', 'data_set']],
                                     disabled = st.session_state.demo_toggle)
@@ -250,6 +264,7 @@ class App:
         id_col = col1.selectbox(self.__STRINGS['ID_Entry'],
                                 options = cols.copy(),
                                 key = 'id_input',
+                                help = self.__STRINGS['ID_Entry_Help'],
                                 on_change = self.__to_state_false,
                                 args = [['id_valid', 'plot_toggle', 'data_set']],
                                 disabled = st.session_state.demo_toggle)
@@ -270,7 +285,7 @@ class App:
         
         # Model Selection
         # region
-        # Only show Classifier/Cluster options if data and columns are valid
+        # Only show Supervised/Unsupervised options if data and columns are valid
         if st.session_state.data_set:
             col1.markdown('-----')
             col1.subheader(self.__STRINGS['Header2'])
@@ -279,91 +294,96 @@ class App:
             scaler_entry = col1.radio(self.__STRINGS['Scaler_Entry'],
                                       options = self.__STRINGS['Scaler_Options'],
                                       index = 0,
+                                      help = self.__STRINGS['Scaler_Entry_Help'],
                                       key = 'scaler_input',
                                       horizontal = True)
 
-            ########## Classifier Selector ##########
-            classifier = col1.selectbox(self.__STRINGS['Classifier_Entry'], 
-                                        options = self.__STRINGS['Classifier_Options'], 
-                                        key = 'classifier_input')
+            ########## Supervised Model Selector ##########
+            super_model = col1.selectbox(self.__STRINGS['Supervised_Entry'], 
+                                        options = self.__STRINGS['Supervised_Options'], 
+                                        key = 'super_input',
+                                        help = self.__STRINGS['Supervised_Entry_Help'])
             
             subcol1_1, subcol2_1, subcol3_1, subcol4_1 = col1.columns(4)
 
             # columns for parameter inputs
             params = [subcol1_1.empty(), subcol2_1.empty(), subcol3_1.empty(), subcol4_1.empty()]
-            validate_class = subcol1_1.empty()
+            val_super_cont = subcol1_1.empty()
 
-            if classifier != self.__STRINGS['Default_Selectbox'][0]:
+            if super_model != self.__STRINGS['Default_Selectbox'][0]:
                 param_inputs = {}
                 # generate each parameter text input and collect their values
-                for i in range(len(self.__STRINGS["Classifier_Params"][classifier])):
-                    param_name = self.__STRINGS["Classifier_Params"][classifier][i]
+                for i in range(len(self.__STRINGS["Supervised_Params"][super_model])):
+                    param_name = self.__STRINGS["Supervised_Params"][super_model][i]
+                    param_help = self.__STRINGS["Supervised_Params_Help"][super_model][i]
                     # Set default value to previous entry, otherwise empty
                     try:
-                        value = st.session_state.param_dict[classifier][param_name]
+                        value = st.session_state.param_dict[super_model][param_name]
                     except:
                         value = None
                     
-                    temp = params[i].text_input(label = param_name, value = value)
+                    temp = params[i].text_input(label = param_name, value = value, help = param_help)
                     param_inputs[param_name] = temp
 
-                st.session_state.param_dict[classifier] = param_inputs
+                st.session_state.param_dict[super_model] = param_inputs
                 
-                validate_class.button('Validate',
-                                      key = 'val_class',
-                                      on_click=self.__validate_class_clust,
-                                      args = [st.session_state.classifier_input,
-                                              'classifier'])
+                val_super_cont.button('Validate',
+                                      key = 'val_super',
+                                      on_click=self.__validate_model,
+                                      args = [st.session_state.super_input,
+                                              'supervised'])
                 
-                validate_class_res = col1.empty()
+                val_super_res_cont = col1.empty()
                 
-                if st.session_state.class_results_err is not None:
-                    validate_class_res.error(st.session_state.class_results_err)
-                elif st.session_state.class_results is not None:
-                    validate_class_res.write(f"Accuracy Score: {st.session_state.class_results}")
+                if st.session_state.super_results_err is not None:
+                    val_super_res_cont.error(st.session_state.super_results_err)
+                elif st.session_state.val_super:
+                    val_super_res_cont.write(f"Accuracy Score: {st.session_state.super_results}")
             
-            ########## Cluster Selector ##########
-            cluster = col1.selectbox(self.__STRINGS['Cluster_Entry'], 
-                                        options = self.__STRINGS['Cluster_Options'], 
-                                        key = 'cluster_input')
+            ########## Unsupervised Selector ##########
+            unsup_model = col1.selectbox(self.__STRINGS['Unsupervised_Entry'], 
+                                        options = self.__STRINGS['Unsupervised_Options'], 
+                                        key = 'unsup_input',
+                                        help = self.__STRINGS['Unsupervised_Entry_Help'])
             
             subcol1_2, subcol2_2, subcol3_2, subcol4_2 = col1.columns(4)
 
             # columns for parameter inputs
             params = [subcol1_2.empty(), subcol2_2.empty(), subcol3_2.empty(), subcol4_2.empty()]
-            validate_cluster = subcol1_2.empty()
+            val_unsup_cont = subcol1_2.empty()
 
-            if cluster != self.__STRINGS['Default_Selectbox'][0]:
+            if unsup_model != self.__STRINGS['Default_Selectbox'][0]:
                 param_inputs = {}
                 # generate each parameter text input and collect their values
-                for i in range(len(self.__STRINGS["Cluster_Params"][cluster])):
-                    param_name = self.__STRINGS["Cluster_Params"][cluster][i]
+                for i in range(len(self.__STRINGS["Unsupervised_Params"][unsup_model])):
+                    param_name = self.__STRINGS["Unsupervised_Params"][unsup_model][i]
+                    param_help = self.__STRINGS["Unsupervised_Params_Help"][unsup_model][i]
                     # Set default value to previous entry, otherwise empty
                     try:
-                        value = st.session_state.param_dict[cluster][param_name]
+                        value = st.session_state.param_dict[unsup_model][param_name]
                     except:
                         value = None
                     
-                    temp = params[i].text_input(param_name, value)
+                    temp = params[i].text_input(label = param_name, value = value, help = param_help)
                     param_inputs[param_name] = temp
 
-                st.session_state.param_dict[cluster] = param_inputs
+                st.session_state.param_dict[unsup_model] = param_inputs
                 
-                validate_cluster.button('Validate', 
-                                        key = 'val_clus',
-                                        on_click=self.__validate_class_clust,
-                                        args=[st.session_state.cluster_input, 
-                                              'cluster'])
+                val_unsup_cont.button('Validate', 
+                                      key = 'val_unsup',
+                                      on_click=self.__validate_model,
+                                      args=[st.session_state.unsup_input, 
+                                            'unsupervised'])
                 
-                validate_clust_res = col1.empty()
+                val_unsup_res_cont = col1.empty()
                 
-                if st.session_state.clust_results_err is not None:
-                    validate_clust_res.error(st.session_state.clust_results_err)
-                elif st.session_state.val_clus:
-                    validate_clust_res.write(f"Accuracy Score: {st.session_state.clust_results}")
+                if st.session_state.unsup_results_err is not None:
+                    val_unsup_res_cont.error(st.session_state.unsup_results_err)
+                elif st.session_state.val_unsup:
+                    val_unsup_res_cont.write(f"Accuracy Score: {st.session_state.unsup_results}")
         # endregion
-            if (st.session_state.classifier_input != self.__STRINGS['Default_Selectbox'][0]) and \
-                (st.session_state.cluster_input != self.__STRINGS['Default_Selectbox'][0]):
+            if (super_model != self.__STRINGS['Default_Selectbox'][0]) and \
+                (unsup_model != self.__STRINGS['Default_Selectbox'][0]):
                 col1.markdown('-----')
                 run_button = col1.button(self.__STRINGS['Run_Button'],
                                         key = 'run_button',
@@ -415,6 +435,9 @@ class App:
 
             pindex = self.__STRINGS['Plot_Type_Options'].index(st.session_state.plot_type)
             col2.bokeh_chart(st.session_state.run_plots[pindex], True)
+            col2.download_button(label = self.__STRINGS['Download_Plot'], 
+                                 data = file_html(st.session_state.run_plots[pindex], CDN, 'plot'),
+                                 file_name = 'plot.html')
 
         ########## Raw Data Toggle ##########
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
@@ -427,7 +450,7 @@ class App:
 
         ###### TEMP ######
         
-        col2.write(st.session_state)
+        # col2.write(st.session_state)
 
 
 if __name__ == '__main__':
