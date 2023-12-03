@@ -187,11 +187,19 @@ class REDEFINE:
             f.write("Supervised Model:\n")
             for (key, val) in super_info.items():
                 if key != 'results':
+                    if key == 'model_name':
+                        val = str(self.__MODELS[val]).split("'")[1]
+                    if (key == 'scaler_name') and (val != 'None'):
+                        val = str(self.__SCALERS[val]).split("'")[1]
                     f.write(f"{key}: {val}\n")
             f.write("\n")
             f.write("Unsupervised Model:\n")
             for (key, val) in unsup_info.items():
                 if key != 'results':
+                    if key == 'model_name':
+                        val = str(self.__MODELS[val]).split("'")[1]
+                    if (key == 'scaler_name') and (val != 'None'):
+                        val = str(self.__SCALERS[val]).split("'")[1]
                     f.write(f"{key}: {val}\n")
 
             f.write(f"Plot Random Seed: {plot_random}")
@@ -247,17 +255,17 @@ class REDEFINE:
 
         x_true = np.delete(x, flag_idxs, axis=0)
         results_true = results_df.copy().drop(flagged_ids, axis=0)
-
+        
         full_data = ColumnDataSource(dict(
             x1=x_true[:,0],
             x2=x_true[:,1],
-            label=results_true['Label'],
-            sup_label=results_true['SupervisedResult'],
-            unsup_label=results_true['UnsupervisedResult'],
+            label=list(map(str, results_true['Label'])),
+            sup_label=list(map(str, results_true['SupervisedResult'])),
+            unsup_label=list(map(str, results_true['UnsupervisedResult'])),
             id = results_true.index
         ))
-
-        color_mapper = CategoricalColorMapper(factors=self.__Y_names, palette=Accent8)
+        
+        color_mapper = CategoricalColorMapper(factors=list(map(str, self.__Y_names)), palette=Accent8)
 
         true_points = p.circle(x='x1', y='x2', source=full_data, size=7, alpha=0.8,
                             color={'field': 'label', 'transform': color_mapper},
@@ -266,13 +274,13 @@ class REDEFINE:
         # flagged points
         flagged_X = x[flag_idxs]
         flagged_results = results_df[results_df.index.isin(flagged_ids)]
-
+        
         flagged_data = ColumnDataSource(dict(
             x1=flagged_X[:,0],
             x2=flagged_X[:,1],
-            label=flagged_results['Label'],
-            sup_label=flagged_results['SupervisedResult'],
-            unsup_label=flagged_results['UnsupervisedResult'],
+            label=list(map(str, flagged_results['Label'])),
+            sup_label=list(map(str, flagged_results['SupervisedResult'])),
+            unsup_label=list(map(str, flagged_results['UnsupervisedResult'])),
             id = flagged_results.index
         ))
 
@@ -286,7 +294,6 @@ class REDEFINE:
         p.add_layout(leg, 'below')
 
         return p
-
     
     def __doKFold(self, model, scaler, store_results):
         n = len(self.__X)

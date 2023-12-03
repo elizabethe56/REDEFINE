@@ -238,12 +238,13 @@ class App:
 
         # Retrieve column names for selectboxes
         cols = self.__STRINGS['Default_Selectbox']
+        cols_full = cols.copy()
         if st.session_state.has_data:
-            cols.extend(list(data.columns))
+            cols_full.extend(list(data.columns))
 
         ########## Target column ##########
         target_col = col1.selectbox(self.__STRINGS['Target_Entry'],
-                                    options = cols.copy(),
+                                    options = cols_full.copy(),
                                     key = 'target_input',
                                     help = self.__STRINGS['Target_Entry_Help'],
                                     on_change = self.__to_state_false,
@@ -256,9 +257,9 @@ class App:
                 st.session_state.target_valid = True
 
         ########## ID column and error message ##########
-        cols.insert(1, self.__STRINGS['None_Selectbox_Option'])
+        cols_full.insert(1, self.__STRINGS['None_Selectbox_Option'])
         id_col = col1.selectbox(self.__STRINGS['ID_Entry'],
-                                options = cols.copy(),
+                                options = cols_full.copy(),
                                 key = 'id_input',
                                 help = self.__STRINGS['ID_Entry_Help'],
                                 on_change = self.__to_state_false,

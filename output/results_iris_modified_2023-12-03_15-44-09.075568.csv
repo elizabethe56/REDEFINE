@@ -1,4 +1,4 @@
-id,Label,ClassificationResult,ClusterResult,Flagged
+id,Label,SupervisedResult,UnsupervisedResult,Flagged
 0,setosa,setosa,setosa,
 1,setosa,setosa,setosa,
 2,setosa,setosa,setosa,
@@ -76,7 +76,7 @@ id,Label,ClassificationResult,ClusterResult,Flagged
 74,versicolor,versicolor,versicolor,
 75,versicolor,versicolor,versicolor,
 76,versicolor,versicolor,versicolor,
-77,versicolor,virginica,virginica,True
+77,versicolor,versicolor,virginica,
 78,versicolor,versicolor,versicolor,
 79,versicolor,versicolor,versicolor,
 80,versicolor,versicolor,versicolor,
@@ -112,7 +112,7 @@ id,Label,ClassificationResult,ClusterResult,Flagged
 110,virginica,virginica,virginica,
 111,virginica,virginica,virginica,
 112,virginica,virginica,virginica,
-113,virginica,versicolor,versicolor,True
+113,virginica,virginica,versicolor,
 114,virginica,virginica,versicolor,
 115,virginica,virginica,virginica,
 116,virginica,virginica,virginica,
@@ -125,7 +125,7 @@ id,Label,ClassificationResult,ClusterResult,Flagged
 123,virginica,versicolor,versicolor,True
 124,virginica,virginica,virginica,
 125,virginica,virginica,virginica,
-126,virginica,virginica,versicolor,
+126,virginica,versicolor,versicolor,True
 127,virginica,virginica,versicolor,
 128,virginica,virginica,virginica,
 129,virginica,virginica,virginica,
@@ -137,7 +137,7 @@ id,Label,ClassificationResult,ClusterResult,Flagged
 135,virginica,virginica,virginica,
 136,virginica,virginica,virginica,
 137,virginica,virginica,virginica,
-138,virginica,versicolor,versicolor,True
+138,virginica,virginica,versicolor,
 139,virginica,virginica,virginica,
 140,virginica,virginica,virginica,
 141,virginica,virginica,virginica,

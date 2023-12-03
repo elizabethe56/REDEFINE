@@ -1,0 +1,22 @@
+Metadata
+
+Flagged Points: [11, 46, 62, 87, 106, 119, 123, 126, 133]
+
+KFold Random Seed: 63043045
+
+Supervised Model:
+model_name: sklearn.neighbors._classification.KNeighborsClassifier
+scaler_name: None
+error: None
+score: 0.9133333333333333
+model_params: {}
+runtime: 0:00:00.041817
+
+Unsupervised Model:
+model_name: sklearn.cluster._kmeans.KMeans
+scaler_name: None
+error: None
+score: 0.8733333333333333
+model_params: {'random_state': 69497074, 'n_clusters': 3, 'n_init': 20}
+runtime: 0:00:00.024722
+Plot Random Seed: 4849777
