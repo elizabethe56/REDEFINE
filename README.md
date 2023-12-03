@@ -20,10 +20,12 @@ REDEFINE is an app that identifies potentially misclassified points by cross-exa
     * The app will sometimes deactivate due to inactivity.
 * Local: 
     * In the terminal, build the virtual environment:
-        * `pipenv shell`
-        * `pipenv install --ignore-pipfile`
+        * ```
+        pipenv shell
+        pipenv install --ignore-pipfile
+        ```
     * Run the app:
-        * `streamlit run main.py`
+        * ```streamlit run main.py```
 
 ### Next steps
 The next goal is to make for a streamlined in-app replicability process.  This will involve the use of a .JSON download and upload, so the user can upload the file and retrieve the exact settings and results as before.
