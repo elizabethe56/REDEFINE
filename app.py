@@ -6,6 +6,9 @@ import os
 
 from redefine import REDEFINE
 
+from bokeh.io import curdoc
+from bokeh.plotting import figure, output_file, show
+
 st.set_page_config(layout='wide')
 
 # TODO: add tooltips/help to UI inputs
@@ -208,7 +211,7 @@ class App:
                                        accept_multiple_files = False,
                                        key = 'data_input',
                                        on_change=self.__to_state_false,
-                                       args=[['raw_toggle', 'data_set']],
+                                       args=[['raw_toggle', 'plot_toggle', 'data_set']],
                                        disabled = st.session_state.demo_toggle)
 
         if demo_data:
@@ -234,7 +237,7 @@ class App:
                                     options = cols.copy(),
                                     key = 'target_input',
                                     on_change = self.__to_state_false,
-                                    args = ['target_valid'],
+                                    args = [['target_valid', 'plot_toggle', 'data_set']],
                                     disabled = st.session_state.demo_toggle)
         if st.session_state.has_data:
             if target_col == self.__STRINGS['Default_Selectbox'][0]:
@@ -248,7 +251,7 @@ class App:
                                 options = cols.copy(),
                                 key = 'id_input',
                                 on_change = self.__to_state_false,
-                                args = ['id_valid'],
+                                args = [['id_valid', 'plot_toggle', 'data_set']],
                                 disabled = st.session_state.demo_toggle)
 
         if st.session_state.has_data:
@@ -356,7 +359,7 @@ class App:
                 
                 if st.session_state.clust_results_err is not None:
                     validate_clust_res.error(st.session_state.clust_results_err)
-                elif st.session_state.clust_results is not None:
+                elif st.session_state.val_clus:
                     validate_clust_res.write(f"Accuracy Score: {st.session_state.clust_results}")
         # endregion
             if (st.session_state.classifier_input != self.__STRINGS['Default_Selectbox'][0]) and \
@@ -398,12 +401,20 @@ class App:
             result_f.close()
             metadata_f.close()
 
-        show_plot = col2.toggle("Show Plot",
+        show_plot = col2.toggle(self.__STRINGS['Show_Plot_Toggle'],
                                key = 'plot_toggle',
                                disabled = not st.session_state.has_data)
 
         if show_plot:
-            col2.bokeh_chart(st.session_state.run_plots, True)
+            col2.radio(self.__STRINGS['Plot_Type'], 
+                       self.__STRINGS['Plot_Type_Options'],
+                       index = 0,
+                       horizontal = True,
+                       key = 'plot_type')
+
+
+            pindex = self.__STRINGS['Plot_Type_Options'].index(st.session_state.plot_type)
+            col2.bokeh_chart(st.session_state.run_plots[pindex], True)
 
         ########## Raw Data Toggle ##########
         raw_data = col2.toggle(self.__STRINGS['Show_Data_Toggle'],
@@ -412,8 +423,8 @@ class App:
 
         if raw_data:
             col2.dataframe(st.session_state.data)
-        # endregion
-        
+        #endregion
+
         ###### TEMP ######
         
         col2.write(st.session_state)

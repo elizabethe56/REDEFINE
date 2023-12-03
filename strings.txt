@@ -30,5 +30,8 @@
     "Results_Text":"Potentially misclassified points:",
     "Download_Results":"Download Results File",
     "Download_Metadata":"Download Metadata File",
+    "Show_Plot_Toggle":"Show Plot",
+    "Plot_Type":"Dimension Reduction Method",
+    "Plot_Type_Options":
     "Show_Data_Toggle":"Show Raw Data"
 }

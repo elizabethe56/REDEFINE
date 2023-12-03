@@ -153,60 +153,15 @@ class REDEFINE:
         flagged_ids = self.__eval_misclassed(results_df)
 
         results_path, metadata_path = self.__get_file_paths()
-        self.__write_to_files(results_df, class_info, clust_info, flagged_ids, results_path, metadata_path)
+        
 
         # TODO: make graph for UI
         # pca / tsne
-        plot = self.__make_graph(flagged_ids, results_df, scaler_str)
-        
-        return None, flagged_ids, (results_path, metadata_path), plot
-    
-    def run_redefine_test(self,
-                     class_str : str,
-                     class_params : dict,
-                     clust_str : str,
-                     clust_params : dict,
-                     scaler_str : str
-                     ):
-        
-        results_df = pd.DataFrame(columns=['Label','ClassificationResult', 'ClusterResult', 'Flagged'], index=self.__IDs)
-        results_df['Label'] = self.__Y
+        plots, plot_random = self.__make_plots(flagged_ids, results_df, scaler_str)
 
-        # Run Classifier
-        class_info = self.run_model(model_str = class_str,
-                                    params = class_params, 
-                                    scaler_str = scaler_str,
-                                    model_type = "classifier",
-                                    store_results = True)
+        self.__write_to_files(results_df, class_info, clust_info, flagged_ids, plot_random, results_path, metadata_path)
         
-        if class_info['error'] is not None:
-            return class_info['error'], None, None
-        else:
-            for idx, res in class_info['results']:
-                results_df.at[idx, 'ClassificationResult'] = res
-        
-        # Run Cluster Alg
-        clust_info = self.run_model(model_str = clust_str,
-                                    params = clust_params, 
-                                    scaler_str = scaler_str,
-                                    model_type = "cluster",
-                                    store_results = True)
-        
-        if clust_info['error'] is not None:
-            return clust_info['error'], None, None
-        else:
-            results_df['ClusterResult'] = clust_info['results']
-
-        # Results
-        self.flagged_ids = self.__eval_misclassed(results_df)
-        self.results_df = results_df
-        # results_path, metadata_path = self.__get_file_paths()
-        # self.__write_to_files(results_df, class_info, clust_info, flagged_idx, results_path, metadata_path)
-
-        # TODO: make graph for UI
-        # pca / tsne
-        
-        return None #, flagged_idx (results_path, metadata_path)
+        return None, flagged_ids, (results_path, metadata_path), plots
     
     def __eval_misclassed(self, results_df):
         flagged_idx = []
@@ -217,7 +172,7 @@ class REDEFINE:
                 results_df.at[idx, 'Flagged'] = True
         return flagged_idx
     
-    def __write_to_files(self, results_df, class_info, clust_info, flagged_ids, results_path, metadata_path):
+    def __write_to_files(self, results_df, class_info, clust_info, flagged_ids, plot_random, results_path, metadata_path):
         
         # Results file
         results_df.to_csv(results_path)
@@ -238,6 +193,8 @@ class REDEFINE:
             for (key, val) in clust_info.items():
                 if key != 'results':
                     f.write(f"{key}: {val}\n")
+
+            f.write(f"Plot Random Seed: {plot_random}")
         return
 
     def __get_file_paths(self):
@@ -247,23 +204,31 @@ class REDEFINE:
 
         return results_path, metadata_path
     
-    def __make_graphs(self, flagged_ids, results_df):
-        # scale
-        # pca
-        # make pca plot
-        # tsne
-        # make tsne plot
+    def __make_plots(self, flagged_ids, results_df, scaler_str):
 
-        return #pca_plot, tsne_plot
+        random_state = self.__get_random_seed()
 
-    def __make_graph(self, flagged_ids, results_df, scaler_str):
+        if scaler_str == "None":
+            scaler = None
+            x = self.__X.copy()
+        else:
+            scaler = self.__SCALERS[scaler_str]()
+            x = scaler.fit_transform(self.__X)
+
+        pca_plot = self.__make_plot(flagged_ids, results_df, x, 'pca', random_state)
+        tsne_plot = self.__make_plot(flagged_ids, results_df, x, 'tsne', random_state)
+
+        return (pca_plot, tsne_plot), random_state
+
+    def __make_plot(self, flagged_ids, results_df, x, plot_type, random_state):
         
-        # scaling + decomp
-        scale = self.__SCALERS[scaler_str]()
-        x_scale = scale.fit_transform(self.__X)
-        pca = PCA(n_components=2)
-        pca = PCA(n_components=2, random_state=1)
-        x_pca = pca.fit_transform(x_scale)
+        if plot_type == 'pca':
+            pca = PCA(n_components=2, random_state=random_state)
+            x = pca.fit_transform(x)
+        else:
+            tsne = TSNE(n_components=2, random_state=random_state)
+            x = tsne.fit_transform(x)
+
 
         TOOLTIPS = [
             ("ID", "@id"),
@@ -274,10 +239,13 @@ class REDEFINE:
 
         p = figure(width=400, height=500,
                 tooltips = TOOLTIPS)
+
+        p.title.text = plot_type.upper()
+        p.axis.visible = False
         
         flag_idxs = np.nonzero(np.array(flagged_ids)[:, None] == np.array(self.__IDs))[1]
 
-        x_true = np.delete(x_pca, flag_idxs, axis=0)
+        x_true = np.delete(x, flag_idxs, axis=0)
         results_true = results_df.copy().drop(flagged_ids, axis=0)
 
         full_data = ColumnDataSource(dict(
@@ -296,7 +264,7 @@ class REDEFINE:
                             legend_field='label')
 
         # flagged points
-        flagged_X = x_pca[flag_idxs]
+        flagged_X = x[flag_idxs]
         flagged_results = results_df[results_df.index.isin(flagged_ids)]
 
         flagged_data = ColumnDataSource(dict(
@@ -314,10 +282,9 @@ class REDEFINE:
         p.legend.visible = False
 
         leg = Legend(items=p.legend.items, location='left')
-
+        
         p.add_layout(leg, 'below')
 
-        p.title.text = "Plot"
         return p
 
     
