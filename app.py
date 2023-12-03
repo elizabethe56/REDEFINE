@@ -447,12 +447,3 @@ class App:
         if raw_data:
             col2.dataframe(st.session_state.data)
         #endregion
-
-        ###### TEMP ######
-        
-        # col2.write(st.session_state)
-
-
-if __name__ == '__main__':
-    app = App()
-    app.window()
