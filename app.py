@@ -10,10 +10,6 @@ from bokeh.resources import CDN
 
 from redefine import REDEFINE
 
-st.set_page_config(layout='wide')
-
-# TODO: add tooltips/help to UI inputs
-
 class App:
 
     with open('strings.txt', 'r') as f:
@@ -96,7 +92,7 @@ class App:
         '''
 
         @st.cache_data
-        def verify_data(file):
+        def verify_data(file : st.UploadedFile | str) -> (bool, pd.DataFrame, str):
             has_data = False
             data = ""
             error = ""
@@ -214,7 +210,7 @@ class App:
                                key = 'demo_toggle',
                                help=self.__STRINGS['Demo_Data_Help'],
                                on_change = self.__to_state_false,
-                               args = [['raw_toggle', 'data_set']])
+                               args = [['raw_toggle', 'data_set', 'plot_toggle']])
 
         ########## Data ##########
         data_file = col1.file_uploader(self.__STRINGS['Data_Entry'], 
@@ -423,7 +419,7 @@ class App:
 
         show_plot = col2.toggle(self.__STRINGS['Show_Plot_Toggle'],
                                key = 'plot_toggle',
-                               disabled = not st.session_state.has_data)
+                               disabled = (st.session_state.run_plots is None))
 
         if show_plot:
             col2.radio(self.__STRINGS['Plot_Type'], 
@@ -431,7 +427,6 @@ class App:
                        index = 0,
                        horizontal = True,
                        key = 'plot_type')
-
 
             pindex = self.__STRINGS['Plot_Type_Options'].index(st.session_state.plot_type)
             col2.bokeh_chart(st.session_state.run_plots[pindex], True)
