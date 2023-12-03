@@ -32,6 +32,6 @@
     "Download_Metadata":"Download Metadata File",
     "Show_Plot_Toggle":"Show Plot",
     "Plot_Type":"Dimension Reduction Method",
-    "Plot_Type_Options":
+    "Plot_Type_Options":["PCA","t-SNE"],
     "Show_Data_Toggle":"Show Raw Data"
 }
