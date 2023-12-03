@@ -1,0 +1,8 @@
+Metadata
+
+Flagged Points: [4069430, 12251332, 12251580, 23241177, 23141186, 24091329, 4211846, 5167503, 5271551]
+
+KFold Random Seed: 93447704
+
+Supervised Model:
+model_name: sklearn.neighbors._classification.KNeighborsClassifier
