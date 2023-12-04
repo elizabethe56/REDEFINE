@@ -200,7 +200,7 @@ class App:
 
         # Titles
         st.title(self.__STRINGS['Title'])
-        st.header(self.__STRINGS['Subtitle'])
+        st.write(self.__STRINGS['Description'])
         
         col1, col2 = st.columns([1,1])
 

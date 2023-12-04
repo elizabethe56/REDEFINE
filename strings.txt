@@ -1,10 +1,10 @@
 {
-    "Title":"REDEFINE",
-    "Subtitle":"Reclassify Enhanced Data for Improved Normalization and Evaluation",
+    "Title":"REDEFINE : Reclassify Data Enhancement for Improved Normalization and Evaluation",
+    "Description":"This app identifies potentially misclassified points in classification datasets by cross-examining results from supervised and unsupervised models. The result is a list of the points that get highlighted as potentially misclassified. More details can be found [here](https://github.com/elizabethe56/REDEFINE#readme).",
     "Header1":"Step 1: Data",
     "Demo_Data":"Use Iris Data",
     "Demo_Data_Cols":{"target":"target", "id":"id"},
-    "Demo_Data_Help":"The iris dataset from Scikit-Learn, purposefully modified for testing purposes. Modifications found [here](https://github.com/elizabethe56/REDEFINE/blob/main/data/iris_data.ipynb).",
+    "Demo_Data_Help":"The iris dataset from Scikit-Learn, purposefully modified for testing purposes. Original dataset found [here](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html#the-iris-dataset). Modifications found [here](https://github.com/elizabethe56/REDEFINE/blob/main/data/iris_data.ipynb).",
     "Data_Entry":"Upload dataset:",
     "Data_Entry_Help":"Upload a .CSV of your data. The data must be all numeric except your target and ID columns.",
     "Data_Entry_Error_Empty":"Please upload a dataset.",

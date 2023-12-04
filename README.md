@@ -1,6 +1,6 @@
-# REDEFINE : Reclassify Enhanced Data for Improved Normalization and Evaluation.
+# REDEFINE : Reclassify Data Enhancement for Improved Normalization and Evaluation.
 
-REDEFINE is an app that identifies potentially misclassified points by cross-examining results from supervised and unsupervised models. The app has been designed especially for usability, so both data scientists and non-data scientists can make the most of the process.
+REDEFINE is an app that identifies potentially misclassified points in classification datasets by cross-examining results from supervised and unsupervised models. Points get highlighted if both of the models agree on a label that is different than the given label. The app has been designed especially for usability, so both data scientists and non-data scientists can make the most of the process. All current models are from the Scikit-Learn library.
 
 ### Data Requirements
 * 200MB or smaller
