@@ -65,7 +65,7 @@ class App:
         Turns the given session state(s) false.  
         Used in on_click to reset states or turn functionalities off
         
-        Input:
+        Parameters:
             key: string or list of strings with the names of session states
         '''
 
@@ -83,9 +83,10 @@ class App:
         Checks the data for errors and loads the data.
         Uses an internal function to cache the data
         
-        Input:
+        Parameters:
             file: file via st.file_uploader | str if using demo data
-        Output:
+        
+        Returns:
             has_data: boolean for has_data flag
             data: pandas DataFrame of data if verified
             error: error string, if found
@@ -159,7 +160,8 @@ class App:
         '''
         Runs either a 10-fold cross validation with the chosen supervsied model and hyperparameters,
         or evaluates the unsupervised model and hyperparameters
-        Inputs:
+        
+        Parameters:
             model: model
             model_type: string, either 'supervised' or 'unsupervised'
         '''

@@ -15,8 +15,24 @@ from bokeh.plotting import figure
 from bokeh.models import CategoricalColorMapper
 from bokeh.palettes import Accent8
 
+from typing import Union, Optional
+
 class REDEFINE:
-    def __init__(self, file_name, data, target_col, id_col):
+    def __init__(self, 
+                 file_name : str, 
+                 data : pd.DataFrame, 
+                 target_col : str, 
+                 id_col : str):
+        '''
+        Cleans and initializes data, and initializes constants
+
+        Parameters:
+            file_name: name of the data file
+            data: dataframe of data
+            target_col: name of the target column
+            id_col: name of the id column, or '(None)' if no such column exists
+        '''
+
         # set all data variables
         self.__clean_data(data, target_col, id_col)
         self.__file_name = file_name.split('.')[0]
@@ -35,54 +51,104 @@ class REDEFINE:
         
         return
     
-    def __clean_data(self, data, target_col, id_col):
+    def __get_file_paths(self):
+        '''
+        File Naming Convention: [file_type]_[data_file_name]_[timestamp]
 
-        if id_col == "(None)":
-            data = data.reset_index()
-            id_col = "index"
+        Returns:
+            results_path: the path and name of the results file
+            metadata_path: the path and name of the metadata file
+        '''
+        results_path = os.path.join(self.__PATH_OUT, f"results_{self.__file_name}_{self.__timestamp()}.csv")
+        metadata_path = os.path.join(self.__PATH_OUT, f"metadata_{self.__file_name}_{self.__timestamp()}.txt")
 
-        self.__IDs = data[id_col]
-        Y = data[target_col]
-        self.__Y_names = Y.unique()
-        self.__Y = Y.values
-
-        data_cols = list(data.columns).copy()
-        data_cols.remove(target_col)
-        data_cols.remove(id_col)
-        self.__X = data[data_cols].values
-        return
+        return results_path, metadata_path
     
-    def __clean_params(self, model_str, params):
-        # Remove empty parameters and convert strings to numbers where necessary
-        clean_param = { key:self.__str_to_num(val) 
-                       for (key, val) in params.items() 
-                       if (val != "") and (val is not None) }
-        # get all possible model parameters
-        model_params = self.__MODELS[model_str]().get_params().keys()
+    def run_redefine(self,
+                     super_str : str,
+                     super_params : dict[str, str],
+                     unsup_str : str,
+                     unsup_params : dict,
+                     scaler_str : str
+                     ) -> tuple[Optional[str], Optional[list[Union[int, str]]], Optional[tuple[str]], Optional[tuple[figure]]]:
+        '''
+        The main pipeline.  Compares the results from the supervised model and unsupervised model to the original labels.  Saves results and metadata to files and outputs them to the app.
 
-        # See if random_state is a parameter, set seed for replicability
-        if 'random_state' in model_params:
-            random_seed = self.__get_random_seed()
-            clean_param['random_state'] = random_seed
+        Parameters:
+            super_str: the name of the supervised model
+            super_params: the parameters for the supervised model
+            unsup_str: the name of the unsupervised model
+            unsup_params: the parameters for the supervised model
+            scaler_str: the name of the scaling model
 
-        # See if n_clusters is a parameter, set to len of Y_names
-        if 'n_clusters' in model_params:
-            clean_param['n_clusters'] = len(self.__Y_names)
+        Returns:
+            err: any error that occurs, returns everything else as None, returns None if no error
+            results: list of IDs that got flagged as misclassified
+            files: tuple of file paths for results and metadata, respectively
+            plots: tuple of PCA and t-SNE Bokeh plots, respectively
+        '''
+        results_df = pd.DataFrame(columns=['Label','SupervisedResult', 'UnsupervisedResult', 'Flagged'], index=self.__IDs)
+        results_df['Label'] = self.__Y
+        try:
+            # Run Supervised
+            super_info = self.run_model(model_str = super_str,
+                                        params = super_params, 
+                                        scaler_str = scaler_str,
+                                        model_type = "supervised",
+                                        store_results = True)
+            
+            if super_info['error'] is not None:
+                return super_info['error'], None, None, None
+            else:
+                for idx, res in super_info['results']:
+                    results_df.at[idx, 'SupervisedResult'] = res
+            
+            # Run Cluster Alg
+            unsup_info = self.run_model(model_str = unsup_str,
+                                        params = unsup_params, 
+                                        scaler_str = scaler_str,
+                                        model_type = "unsupervised",
+                                        store_results = True)
+            
+            if unsup_info['error'] is not None:
+                return unsup_info['error'], None, None, None
+            else:
+                results_df['UnsupervisedResult'] = unsup_info['results']
+
+            # Results
+            flagged_ids = self.__eval_misclassed(results_df)
+
+            results_path, metadata_path = self.__get_file_paths()
+            
+            plots, plot_random = self.__make_plots(flagged_ids, results_df, scaler_str)
+
+            self.__write_to_files(results_df, super_info, unsup_info, flagged_ids, plot_random, results_path, metadata_path)
+
+            return None, flagged_ids, (results_path, metadata_path), plots
+        except Exception as e:
+            return e, None, None, None
         
-        # set n_init for KMeans
-        if 'n_init' in model_params:
-            clean_param['n_init'] = 20
-
-        return clean_param
-
     def run_model(self,
                   model_str : str, 
                   params : dict, 
                   scaler_str : str,
                   model_type : str,
                   store_results : bool = False
-                  ) -> (str, float):
+                  ) -> dict:
+        '''
+        Runs either K-Fold Cross-Validation on a supervised model or clustering with an unsupervised model.
+
+        Parameters:
+            model_str: name of the model as seen in the app; mapped to the model in self.__MODELS
+            params: dictionary of model parameters
+            scaler_str: name of the scaling model as seen in the app; mapped to the model in self.__SCALERS
+            model_type: 'supervised' or 'unsupervised'
+            store_results: False for validation, True for running results
         
+        Returns:
+            info: dictionary with metadata: model_name, model_params, scaler_name, error, score, results, runtime
+        '''
+
         info = {'model_name' : model_str, 
                 'scaler_name' : scaler_str, 
                 'error' : None, 
@@ -113,57 +179,89 @@ class REDEFINE:
         info['runtime'] = dt.now() - t0
         return info
     
-    def run_redefine(self,
-                     super_str : str,
-                     super_params : dict,
-                     unsup_str : str,
-                     unsup_params : dict,
-                     scaler_str : str
-                     ):
+    def __clean_data(self, 
+                     data : pd.DataFrame, 
+                     target_col : str, 
+                     id_col : str):
+        '''
+        Cleans data and initializes class variables.
         
-        results_df = pd.DataFrame(columns=['Label','SupervisedResult', 'UnsupervisedResult', 'Flagged'], index=self.__IDs)
-        results_df['Label'] = self.__Y
+        Parameters:
+            data: dataframe of data
+            target_col: name of the target column
+            id_col: name of the id column, or '(None)' if no such column exists
+        '''
 
-        # Run Supervised
-        super_info = self.run_model(model_str = super_str,
-                                    params = super_params, 
-                                    scaler_str = scaler_str,
-                                    model_type = "supervised",
-                                    store_results = True)
+        # Create index column if needed
+        if id_col == "(None)":
+            data = data.reset_index()
+            id_col = "index"
         
-        if super_info['error'] is not None:
-            return super_info['error'], None, None
-        else:
-            for idx, res in super_info['results']:
-                results_df.at[idx, 'SupervisedResult'] = res
-        
-        # Run Cluster Alg
-        unsup_info = self.run_model(model_str = unsup_str,
-                                    params = unsup_params, 
-                                    scaler_str = scaler_str,
-                                    model_type = "unsupervised",
-                                    store_results = True)
-        
-        if unsup_info['error'] is not None:
-            return unsup_info['error'], None, None
-        else:
-            results_df['UnsupervisedResult'] = unsup_info['results']
+        self.__IDs = data[id_col]
 
-        # Results
-        flagged_ids = self.__eval_misclassed(results_df)
+        # get classes
+        Y = data[target_col]
+        self.__Y_names = Y.unique()
+        self.__Y = Y.values
 
-        results_path, metadata_path = self.__get_file_paths()
-        
-
-        # TODO: make graph for UI
-        # pca / tsne
-        plots, plot_random = self.__make_plots(flagged_ids, results_df, scaler_str)
-
-        self.__write_to_files(results_df, super_info, unsup_info, flagged_ids, plot_random, results_path, metadata_path)
-        
-        return None, flagged_ids, (results_path, metadata_path), plots
+        # remove target and ID columns from data
+        data_cols = list(data.columns).copy()
+        data_cols.remove(target_col)
+        data_cols.remove(id_col)
+        self.__X = data[data_cols].values
+        return
     
-    def __eval_misclassed(self, results_df):
+    def __clean_params(self, 
+                       model_str : str, 
+                       params : dict
+                       ) -> dict:
+        '''
+        Cleans parameters and initializes random states.
+        
+        Parameters:
+            model_str: name of the model, as seen in the app; mapped to model in self.__MODELS
+            params: dictionary of parameters
+
+        Returns:
+            clean_param: cleaned dictionary of parameters
+        '''
+        
+        # Remove empty parameters and convert strings to numbers where necessary
+        clean_param = { key:self.__str_to_num(val) 
+                       for (key, val) in params.items() 
+                       if (val != "") and (val is not None) }
+        
+        # get all possible model parameters
+        model_params = self.__MODELS[model_str]().get_params().keys()
+
+        # See if random_state is a parameter, set seed for replicability
+        if 'random_state' in model_params:
+            random_seed = self.__get_random_seed()
+            clean_param['random_state'] = random_seed
+
+        # See if n_clusters is a parameter, set to len of Y_names
+        if 'n_clusters' in model_params:
+            clean_param['n_clusters'] = len(self.__Y_names)
+        
+        # set n_init for KMeans
+        if 'n_init' in model_params:
+            clean_param['n_init'] = 20
+
+        return clean_param
+
+    def __eval_misclassed(self, 
+                          results_df : pd.DataFrame
+                          ) -> list:
+        '''
+        Label and return the points where supervised and unsupervised results agree on a class that is different than the original label.
+
+        Parameters: 
+            results_df: the dataframe with the IDs (as the index), original labels, supervised results and unsupervised results; gets modified, adds True value in the 'Flagged' column the point is marked as p
+        
+        Returns:
+            list of IDs for the points that got flagged as misclassified
+        '''
+        
         flagged_idx = []
         for idx, row in results_df.iterrows():
             if (row['SupervisedResult'] == row['UnsupervisedResult']) and \
@@ -172,8 +270,27 @@ class REDEFINE:
                 results_df.at[idx, 'Flagged'] = True
         return flagged_idx
     
-    def __write_to_files(self, results_df, super_info, unsup_info, flagged_ids, plot_random, results_path, metadata_path):
-        
+    def __write_to_files(self, 
+                         results_df : pd.DataFrame, 
+                         super_info : dict, 
+                         unsup_info : dict, 
+                         flagged_ids : list, 
+                         plot_random : int, 
+                         results_path : str, 
+                         metadata_path : str):
+        '''
+        Write the results and metadata files to the given file paths.
+
+        Parameters:
+            results_df: the DataFrame that holds the results from the supervised and unsupervised models
+            super_info: dictionary with all of the recorded data about the supervised model
+            unsup_info: dictionary with all of the recorded data about the unsupervised model
+            flagged_ids: list of IDs for the flagged points
+            plot_random: the random seed provided to both PCA and t-SNE for creating the plot
+            results_path: path and name of the results file
+            metadata_path: path and name of the metadata file
+        '''
+
         # Results file
         results_df.to_csv(results_path)
 
@@ -205,14 +322,23 @@ class REDEFINE:
             f.write(f"Plot Random Seed: {plot_random}")
         return
 
-    def __get_file_paths(self):
+    def __make_plots(self, 
+                     flagged_ids : list, 
+                     results_df : pd.DataFrame, 
+                     scaler_str : str
+                     ) -> tuple[tuple[figure], int]:
+        '''
+        Scale the data and set the random seed for PCA and t-SNE, then generate the plots.
 
-        results_path = os.path.join(self.__PATH_OUT, f"results_{self.__file_name}_{self.__timestamp()}.csv")
-        metadata_path = os.path.join(self.__PATH_OUT, f"metadata_{self.__file_name}_{self.__timestamp()}.txt")
-
-        return results_path, metadata_path
-    
-    def __make_plots(self, flagged_ids, results_df, scaler_str):
+        Parameters:
+            flagged_ids: list of IDs for the flagged points
+            results_df: the DataFrame that holds the results from the supervised and unsupervised models
+            scaler_str: name of the scaling model as seen in the app; mapped to the model in self.__SCALERS
+        
+        Returns:
+            plots: tuple of PCA and t-SNE Bokeh plots, respectively
+            random_state: the random state used for both PCA and t-SNE
+        '''
 
         random_state = self.__get_random_seed()
 
@@ -228,8 +354,27 @@ class REDEFINE:
 
         return (pca_plot, tsne_plot), random_state
 
-    def __make_plot(self, flagged_ids, results_df, x, plot_type, random_state):
+    def __make_plot(self, 
+                    flagged_ids : list, 
+                    results_df : pd.DataFrame, 
+                    x : np.ndarray,
+                    plot_type : str, 
+                    random_state : int
+                    ) -> figure:
+        '''
+        Generate the bokeh figure object for the given data.
+
+        Parameters:
+            flagged_ids: list of IDs for the flagged points
+            results_df: the DataFrame that holds the results from the supervised and unsupervised models
+            x: the scaled data (if chosen scaler was not none)
+            plot_type: type of plot, either 'pca' or 'tsne'
+            random_state: the random state used for the dimensionality reduction method
         
+        Returns:
+            figure: bokeh figure with all points and flagged points in red
+        '''
+
         if plot_type == 'pca':
             pca = PCA(n_components=2, random_state=random_state)
             x = pca.fit_transform(x)
@@ -295,7 +440,24 @@ class REDEFINE:
 
         return p
     
-    def __doKFold(self, model, scaler, store_results):
+    def __doKFold(self, 
+                  model, 
+                  scaler,
+                  store_results : bool
+                  ) -> tuple[float, zip]:
+        '''
+        Performs K-Fold cross-validation for supervised learning.
+
+        Parameters:
+            model: the supervised learning model 
+            scaler: the scaler model
+            store_results: True if running the full pipeline, False if running only the validation
+        
+        Returns:
+            mean accuracy score: the mean accuracy score after the given number of K-Folds
+            results zip: a zip of the IDs and their corresponding labels
+        '''
+
         n = len(self.__X)
         idxs = np.linspace(0, n, self.__kfolds+1).astype(int)
         idx = np.arange(0, n)
@@ -340,7 +502,22 @@ class REDEFINE:
 
         return np.mean(accuracy_scores), zip(id_res, yhat_res)
 
-    def __doClustering(self,  model, scaler):
+    def __doClustering(self,  
+                       model, 
+                       scaler
+                       ) -> tuple[int, np.ndarray]:
+        '''
+        Performs clustering with an unsupervised learning model, then assigns categorical labels to each cluster.
+
+        Parameters: 
+            model: the unsupervised learning model
+            scaler: the scaler model
+        
+        Returns:
+            accuracy score: the accuracy score comparing the labeled clusters to the original labels
+            yhat: the predicted labels of each point
+        '''
+        
         x = self.__X.copy()
         y = self.__Y.copy()
         ids = self.__IDs.copy()
@@ -366,7 +543,16 @@ class REDEFINE:
         return self.__accuracy_score(y, yhat), yhat
         
     # Misc
-    def __str_to_num(self, n):
+    def __str_to_num(self, 
+                     n : str
+                     ) -> Union[int, float,  str]:
+        '''
+        Converts a numeric string to a numeric type.
+        
+        Parameters:
+            n: a potentially numeric string
+        
+        '''
         if n.isnumeric():
             return int(n)
         else:
@@ -375,14 +561,35 @@ class REDEFINE:
             except:
                 return n
     
-    def __get_random_seed(self):
+    def __get_random_seed(self) -> int:
+        '''
+        Returns:
+            int: a randomly generated number
+        '''
         return np.random.randint(0,100000000)
     
-    def __accuracy_score(self, ytest, yhat):
+    def __accuracy_score(self, 
+                         ytest : np.ndarray, 
+                         yhat : np.ndarray
+                         ) -> float:
+        '''
+        Calculates the accuracy score between two lists. Divides the number of correctly labeled data by the total number of data. Usually used to calculate the 'correctness' of a classification model.
+
+        Parameters:
+            ytest: the true data labels
+            yhat: the predicted data labels
+        
+        Returns:
+            float: the accuracy score of ytest and yhat
+        '''
         nz = np.flatnonzero(ytest == yhat)
         return len(nz)/len(ytest)
 
-    def __timestamp(self):
+    def __timestamp(self) -> str:
+        '''
+        Returns:
+            str: current time with underscores for file-naming
+        '''
         return str(dt.now()).replace(':','-').replace(' ', '_')
 
     # Getters
