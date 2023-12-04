@@ -1,6 +1,6 @@
 {
     "Title":"REDEFINE : Reclassify Data Enhancement for Improved Normalization and Evaluation",
-    "Description":"This app identifies potentially misclassified points in classification datasets by cross-examining results from supervised and unsupervised models. \n\n The result is a list of the points that get highlighted as potentially misclassified. \n\n More details can be found [here](https://github.com/elizabethe56/REDEFINE#readme).",
+    "Description":"This app identifies potentially misclassified points in classification datasets by cross-examining results from supervised and unsupervised models. The result is a list of the points that get highlighted as potentially misclassified. More details can be found [here](https://github.com/elizabethe56/REDEFINE#readme).",
     "Header1":"Step 1: Data",
     "Demo_Data":"Use Iris Data",
     "Demo_Data_Cols":{"target":"target", "id":"id"},
