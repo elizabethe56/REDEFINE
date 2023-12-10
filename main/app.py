@@ -12,7 +12,7 @@ from redefine import REDEFINE
 
 class App:
 
-    with open('strings.txt', 'r') as f:
+    with open('main/strings.txt', 'r') as f:
         __STRINGS = json.load(f)
 
     __DEMO_DATA_PATH = './data/iris_modified.csv'
