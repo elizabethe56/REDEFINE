@@ -7,6 +7,16 @@ REDEFINE is an app that identifies potentially misclassified points in classific
 * .CSV format
 * Numeric data only; target and ID columns can be nonnumeric
 
+### Models
+* Supervised
+  * [K Nearest Neighbors](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html)
+    * K-Nearest Neighbors (KNN) is a simple algorithm used for classification and regression tasks, determining the class of a new data point by comparing it to the majority class of its k nearest neighbors based on a chosen distance metric, like Euclidean distance, in the feature space. Essentially, it makes predictions by finding the most common class among the k nearest data points in a given dataset.
+  * [Random Forest](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html)
+    * Random Forest is an ensemble learning method that builds multiple decision trees during training and merges their predictions to improve accuracy and prevent overfitting. It works by creating diverse trees through random sampling of both data points and features, and then aggregates their outputs via voting or averaging to make robust and accurate predictions for classification tasks.
+* Unsupervised
+  * [KMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html)
+    * KMeans is an iterative clustering algorithm that partitions a dataset into K clusters by minimizing the sum of squared distances between data points and the centroid of their assigned cluster. It starts by randomly initializing K centroids, assigns data points to the nearest centroid, recalculates centroids based on the mean of assigned points, and iterates until centroids stabilize or a specified number of iterations is reached.
+
 ### Outputs
 
 | file | description |

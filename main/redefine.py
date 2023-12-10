@@ -45,7 +45,7 @@ class REDEFINE:
                           "Min-Max" : MinMaxScaler,
                           "Absolute Max" : MaxAbsScaler,
                           "Robust" : RobustScaler}
-        self.__MODELS = {"Nearest Neighbor" : KNeighborsClassifier,
+        self.__MODELS = {"K Nearest Neighbors" : KNeighborsClassifier,
                          "Random Forest" : RandomForestClassifier,
                          "KMeans" : KMeans}
         
