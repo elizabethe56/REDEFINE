@@ -380,7 +380,7 @@ class App:
                     val_unsup_res_cont.error(st.session_state.unsup_results_err)
                 elif st.session_state.val_unsup:
                     val_unsup_res_cont.write(f"Accuracy Score: {st.session_state.unsup_results}")
-        # endregion
+        
             if (super_model != self.__STRINGS['Default_Selectbox'][0]) and \
                 (unsup_model != self.__STRINGS['Default_Selectbox'][0]):
                 col1.markdown('-----')
@@ -392,6 +392,7 @@ class App:
 
             if st.session_state.run_err is not None:
                 run_error.error(st.session_state.run_err)
+        # endregion
 
         # Results
         # region
@@ -405,20 +406,30 @@ class App:
 
         results_file1 = col2.empty()
         results_file2 = col2.empty()
+        results_file3 = col2.empty()
+
         if st.session_state.run_files is not None:
-            result_f = open(st.session_state.run_files[0], 'r')
-            metadata_f = open(st.session_state.run_files[1], 'r')
+            results_path, metadata_path, params_path = st.session_state.run_files
+
+            result_f = open(results_path, 'r')
+            metadata_f = open(metadata_path, 'r')
+            params_f = open(params_path, 'r')
 
             results_file1.download_button(label = self.__STRINGS['Download_Results'],
                                           data = result_f,
-                                          file_name = 'results.csv')
+                                          file_name = results_path)
             
             results_file2.download_button(label = self.__STRINGS['Download_Metadata'],
                                           data = metadata_f,
-                                          file_name = 'metadata.txt')
+                                          file_name = metadata_path)
+            
+            results_file3.download_button(label = self.__STRINGS['Download_Parameters'],
+                                          data = params_f,
+                                          file_name = params_path)
             
             result_f.close()
             metadata_f.close()
+            params_f.close()
 
         show_plot = col2.toggle(self.__STRINGS['Show_Plot_Toggle'],
                                key = 'plot_toggle',

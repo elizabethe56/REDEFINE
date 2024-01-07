@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 import os
+import json
 from datetime import datetime as dt
+from traceback import print_exc as pe
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -59,10 +61,12 @@ class REDEFINE:
             results_path: the path and name of the results file
             metadata_path: the path and name of the metadata file
         '''
-        results_path = os.path.join(self.__PATH_OUT, f"results_{self.__file_name}_{self.__timestamp()}.csv")
-        metadata_path = os.path.join(self.__PATH_OUT, f"metadata_{self.__file_name}_{self.__timestamp()}.txt")
+        time = self.__timestamp()
+        results_path = os.path.join(self.__PATH_OUT, f"results_{self.__file_name}_{time}.csv")
+        metadata_path = os.path.join(self.__PATH_OUT, f"metadata_{self.__file_name}_{time}.txt")
+        params_path = os.path.join(self.__PATH_OUT, f"params_{self.__file_name}_{time}.json")
 
-        return results_path, metadata_path
+        return results_path, metadata_path, params_path
     
     def run_redefine(self,
                      super_str : str,
@@ -118,13 +122,13 @@ class REDEFINE:
             # Results
             flagged_ids = self.__eval_misclassed(results_df)
 
-            results_path, metadata_path = self.__get_file_paths()
+            path_names = self.__get_file_paths()
             
             plots, plot_random = self.__make_plots(flagged_ids, results_df, scaler_str)
+        
+            self.__write_to_files(results_df, super_info, unsup_info, flagged_ids, plot_random, path_names)
 
-            self.__write_to_files(results_df, super_info, unsup_info, flagged_ids, plot_random, results_path, metadata_path)
-
-            return None, flagged_ids, (results_path, metadata_path), plots
+            return None, flagged_ids, path_names, plots
         except Exception as e:
             return e, None, None, None
         
@@ -276,8 +280,7 @@ class REDEFINE:
                          unsup_info : dict, 
                          flagged_ids : list, 
                          plot_random : int, 
-                         results_path : str, 
-                         metadata_path : str):
+                         path_names : tuple):
         '''
         Write the results and metadata files to the given file paths.
 
@@ -290,7 +293,7 @@ class REDEFINE:
             results_path: path and name of the results file
             metadata_path: path and name of the metadata file
         '''
-
+        results_path, metadata_path, params_path = path_names
         # Results file
         results_df.to_csv(results_path)
 
@@ -320,6 +323,18 @@ class REDEFINE:
                     f.write(f"{key}: {val}\n")
 
             f.write(f"Plot Random Seed: {plot_random}")
+
+        # Params file
+
+        keep = ['model_name', 'scaler_name', 'model_params']
+
+        super_params = {key:val for key, val in super_info.items() if key in keep}
+        unsup_params = {key:val for key, val in unsup_info.items() if key in keep}
+
+        params_dict = {'super': super_params, 'unsup': unsup_params}
+        with open(params_path, 'w+') as f:
+            json.dump(params_dict, f)
+
         return
 
     def __make_plots(self, 
