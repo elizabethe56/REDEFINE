@@ -32,6 +32,11 @@ class App:
         if 'data_set' not in st.session_state:
             st.session_state.data_set = False
 
+        if 'json_input' not in st.session_state:
+            st.session_state.json_input = None
+        if 'keep_rand' not in st.session_state:
+            st.session_state.keep_rand = False
+
         if 'param_dict' not in st.session_state:
             st.session_state.param_dict = {}
         
@@ -154,29 +159,38 @@ class App:
                 return
         return
     
-    def __set_params(self):
-        if 'json_input' not in st.session_state:
-            st.session_state.json_input = False
-        if st.session_state.json_input:
-            f = json.load(st.session_state.json_input)
-            # st.write(json_text)
+    def __set_params(self, f):
+        '''
+        Sets parameter variables according to the uploaded JSON file.
+        '''
 
-            st.session_state.scaler_input = f['super']['scaler_name']
-            st.session_state.super_input = f['super']['model_name']
+        if 'super' in f.keys():
+            if 'scaler_name' in f['super'].keys():
+                st.session_state.scaler_input = f['super']['scaler_name']
+
+            if ('model_name' in f['super'].keys()) and ('model_params' in f['super'].keys()):
+                st.session_state.super_input = f['super']['model_name']
             st.session_state.param_dict[st.session_state.super_input] = f['super']['model_params']
+
+        if ('unsup' in f.keys()) and ('model_name' in f['super'].keys()) and ('model_params' in f['super'].keys()):
             st.session_state.unsup_input = f['unsup']['model_name']
             st.session_state.param_dict[st.session_state.unsup_input] = f['unsup']['model_params']
-
-            # scaler_input -> super/scaler_name
-            # super_input -> super/model_name
-            # param_dict/[super_input] = super/model_params
-            # unsup_input -> unsup/model_name
-            # param_dict/[unsup_input] = unsup/model_params
         return
+    
+    def __set_kf_random_seed(self, f):
+        '''
+        Sets K-Fold random seed in the REDEFINE object from the uploaded JSON file.
+        If a random seed is not given, sets the random seed to 1.
+        '''
+        if 'kf_random_seed' in f.keys():
+            st.session_state.redefine.set_kf_random_seed(f['kf_random_seed'])
+        else:
+            st.session_state.redefine.set_kf_random_seed(1)
     
     def __validate_model(self, 
                          model : str, 
-                         model_type : str):
+                         model_type : str,
+                         keep_rand : bool):
         '''
         Runs either a 10-fold cross validation with the chosen supervsied model and hyperparameters,
         or evaluates the unsupervised model and hyperparameters
@@ -188,7 +202,8 @@ class App:
         info = st.session_state.redefine.run_model(model, 
                                                    st.session_state.param_dict[model],
                                                    st.session_state.scaler_input,
-                                                   model_type)
+                                                   model_type,
+                                                   keep_rand)
         if model_type == 'supervised':
             st.session_state.super_results_err = info['error']
             st.session_state.super_results = info['score']
@@ -205,7 +220,8 @@ class App:
                                                         st.session_state.param_dict[supervised],
                                                         unsupervised,
                                                         st.session_state.param_dict[unsupervised],
-                                                        st.session_state.scaler_input)
+                                                        st.session_state.scaler_input,
+                                                        st.session_state.keep_rand)
         
         st.session_state.run_err = err
         st.session_state.run_results = results
@@ -317,16 +333,23 @@ class App:
                                    key='json_toggle')
 
             if json_tog:
-                # keep random seed checkbox?
-                json_random = col1_2.checkbox(label="Use given random seeds?",
-                                            value=False,
-                                            key = 'keep_rand')
+                # TODO: Configure functions around callbacks so modifications can be made while file is still uploaded
+                # TODO: Can you do it with only using json.load once? honestly is small enough it probably won't matter
                 # file upload
                 json_file = col1.file_uploader(label="Upload JSON file here:",
                                                type="json",
                                                key='json_input')
+                
+                # keep random seed checkbox?
+                json_random = col1_2.checkbox(label="Use given random seeds?",
+                                              value=False,
+                                              key = 'keep_rand')
+                
                 if json_file:
-                    self.__set_params()
+                    loaded_json = json.load(json_file)
+                    self.__set_params(loaded_json)
+                    if json_random:
+                        self.__set_kf_random_seed(loaded_json)
             
             ########## Scaler Selector ##########
             scaler_entry = col1.radio(self.__STRINGS['Scaler_Entry'],
@@ -349,7 +372,7 @@ class App:
             val_super_cont = subcol1_1.empty()
 
             if super_model != self.__STRINGS['Default_Selectbox'][0]:
-                param_inputs = {}
+                param_inputs = st.session_state.param_dict[super_model]
                 # generate each parameter text input and collect their values
                 for i in range(len(self.__STRINGS["Supervised_Params"][super_model])):
                     param_name = self.__STRINGS["Supervised_Params"][super_model][i]
@@ -361,7 +384,8 @@ class App:
                         value = None
                     
                     temp = params[i].text_input(label = param_name, value = value, help = param_help)
-                    param_inputs[param_name] = temp
+                    if (param_name in param_inputs.keys()) and (temp != param_inputs[param_name]):
+                        param_inputs[param_name] = temp
 
                 st.session_state.param_dict[super_model] = param_inputs
                 
@@ -369,7 +393,8 @@ class App:
                                       key = 'val_super',
                                       on_click=self.__validate_model,
                                       args = [st.session_state.super_input,
-                                              'supervised'])
+                                              'supervised',
+                                              st.session_state.keep_rand])
                 
                 val_super_res_cont = col1.empty()
                 
@@ -391,7 +416,7 @@ class App:
             val_unsup_cont = subcol1_2.empty()
 
             if unsup_model != self.__STRINGS['Default_Selectbox'][0]:
-                param_inputs = {}
+                param_inputs = st.session_state.param_dict[unsup_model]
                 # generate each parameter text input and collect their values
                 for i in range(len(self.__STRINGS["Unsupervised_Params"][unsup_model])):
                     param_name = self.__STRINGS["Unsupervised_Params"][unsup_model][i]
@@ -403,7 +428,8 @@ class App:
                         value = None
                     
                     temp = params[i].text_input(label = param_name, value = value, help = param_help)
-                    param_inputs[param_name] = temp
+                    if (param_name in param_inputs.keys()) and (temp != param_inputs[param_name]):
+                        param_inputs[param_name] = temp
 
                 st.session_state.param_dict[unsup_model] = param_inputs
                 
@@ -411,7 +437,8 @@ class App:
                                       key = 'val_unsup',
                                       on_click=self.__validate_model,
                                       args=[st.session_state.unsup_input, 
-                                            'unsupervised'])
+                                            'unsupervised',
+                                            st.session_state.keep_rand])
                 
                 val_unsup_res_cont = col1.empty()
                 
@@ -432,6 +459,8 @@ class App:
             if st.session_state.run_err is not None:
                 run_error.error(st.session_state.run_err)
         # endregion
+
+        st.write(st.session_state)
 
         # Results
         # region

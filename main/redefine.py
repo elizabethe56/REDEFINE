@@ -73,7 +73,8 @@ class REDEFINE:
                      super_params : dict[str, str],
                      unsup_str : str,
                      unsup_params : dict,
-                     scaler_str : str
+                     scaler_str : str,
+                     keep_rand : bool
                      ) -> tuple[Optional[str], Optional[list[Union[int, str]]], Optional[tuple[str]], Optional[tuple[figure]]]:
         '''
         The main pipeline.  Compares the results from the supervised model and unsupervised model to the original labels.  Saves results and metadata to files and outputs them to the app.
@@ -99,6 +100,7 @@ class REDEFINE:
                                         params = super_params, 
                                         scaler_str = scaler_str,
                                         model_type = "supervised",
+                                        keep_rand = keep_rand,
                                         store_results = True)
             
             if super_info['error'] is not None:
@@ -112,6 +114,7 @@ class REDEFINE:
                                         params = unsup_params, 
                                         scaler_str = scaler_str,
                                         model_type = "unsupervised",
+                                        keep_rand = keep_rand,
                                         store_results = True)
             
             if unsup_info['error'] is not None:
@@ -137,6 +140,7 @@ class REDEFINE:
                   params : dict, 
                   scaler_str : str,
                   model_type : str,
+                  keep_rand : bool,
                   store_results : bool = False
                   ) -> dict:
         '''
@@ -159,7 +163,7 @@ class REDEFINE:
                 'score' : None,
                 'results' : None}
 
-        clean_params = self.__clean_params(model_str, params)
+        clean_params = self.__clean_params(model_str, params, keep_rand)
         info['model_params'] = clean_params
         
         t0 = dt.now()
@@ -171,7 +175,7 @@ class REDEFINE:
                 scaler = self.__SCALERS[scaler_str]()
 
             if model_type == 'supervised':
-                score, results = self.__doKFold(model, scaler, store_results)
+                score, results = self.__doKFold(model, scaler, keep_rand, store_results)
             else:
                 score, results = self.__doClustering(model, scaler)
             
@@ -217,7 +221,8 @@ class REDEFINE:
     
     def __clean_params(self, 
                        model_str : str, 
-                       params : dict
+                       params : dict,
+                       keep_rand : bool
                        ) -> dict:
         '''
         Cleans parameters and initializes random states.
@@ -240,9 +245,9 @@ class REDEFINE:
 
         # See if random_state is a parameter, set seed for replicability
         if 'random_state' in model_params:
-            # TODO: set boolean to keep/change random seed
-            random_seed = self.__get_random_seed()
-            clean_param['random_state'] = random_seed
+            if not (('random_state' in clean_param.keys()) and (keep_rand)):
+                random_seed = self.__get_random_seed()
+                clean_param['random_state'] = random_seed
 
         # See if n_clusters is a parameter, set to len of Y_names
         if 'n_clusters' in model_params:
@@ -332,7 +337,7 @@ class REDEFINE:
         super_params = {key:val for key, val in super_info.items() if key in keep}
         unsup_params = {key:val for key, val in unsup_info.items() if key in keep}
 
-        params_dict = {'super': super_params, 'unsup': unsup_params}
+        params_dict = {'super': super_params, 'unsup': unsup_params, 'kf_random_seed':self.__kf_random_seed}
         with open(params_path, 'w+') as f:
             json.dump(params_dict, f)
 
@@ -459,6 +464,7 @@ class REDEFINE:
     def __doKFold(self, 
                   model, 
                   scaler,
+                  keep_rand : bool,
                   store_results : bool
                   ) -> tuple[float, zip]:
         '''
@@ -478,7 +484,8 @@ class REDEFINE:
         idxs = np.linspace(0, n, self.__kfolds+1).astype(int)
         idx = np.arange(0, n)
 
-        self.__kf_random_seed = self.__get_random_seed()
+        if not keep_rand:
+            self.__kf_random_seed = self.__get_random_seed()
         rs = np.random.RandomState(self.__kf_random_seed)
         rs.shuffle(idx)
 
@@ -561,7 +568,7 @@ class REDEFINE:
     # Misc
     def __str_to_num(self, 
                      n : str
-                     ) -> Union[int, float,  str]:
+                     ) -> Union[int, float, str]:
         '''
         Converts a numeric string to a numeric type.
         
@@ -569,13 +576,15 @@ class REDEFINE:
             n: a potentially numeric string
         
         '''
-        if n.isnumeric():
-            return int(n)
-        else:
-            try:
-                return float(n)
-            except:
-                return n
+        if type(n) == str:
+            if n.isnumeric():
+                return int(n)
+            else:
+                try:
+                    return float(n)
+                except:
+                    return n
+        return n
     
     def __get_random_seed(self) -> int:
         '''
@@ -608,7 +617,7 @@ class REDEFINE:
         '''
         return str(dt.now()).replace(':','-').replace(' ', '_').replace('.', '_')
 
-    # Getters
+    # Getters / Setters
     def get_X(self):
         return self.__X.copy()
     
@@ -620,3 +629,7 @@ class REDEFINE:
     
     def get_IDs(self):
         return self.__IDs.copy()
+    
+    def set_kf_random_seed(self, rs):
+        self.__kf_random_seed = rs
+        return
