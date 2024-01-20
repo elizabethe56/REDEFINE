@@ -154,6 +154,26 @@ class App:
                 return
         return
     
+    def __set_params(self):
+        if 'json_input' not in st.session_state:
+            st.session_state.json_input = False
+        if st.session_state.json_input:
+            f = json.load(st.session_state.json_input)
+            # st.write(json_text)
+
+            st.session_state.scaler_input = f['super']['scaler_name']
+            st.session_state.super_input = f['super']['model_name']
+            st.session_state.param_dict[st.session_state.super_input] = f['super']['model_params']
+            st.session_state.unsup_input = f['unsup']['model_name']
+            st.session_state.param_dict[st.session_state.unsup_input] = f['unsup']['model_params']
+
+            # scaler_input -> super/scaler_name
+            # super_input -> super/model_name
+            # param_dict/[super_input] = super/model_params
+            # unsup_input -> unsup/model_name
+            # param_dict/[unsup_input] = unsup/model_params
+        return
+    
     def __validate_model(self, 
                          model : str, 
                          model_type : str):
@@ -288,6 +308,25 @@ class App:
         if st.session_state.data_set:
             col1.markdown('-----')
             col1.subheader(self.__STRINGS['Header2'])
+
+            # Provide option to pre-load models and parameters
+            # Toggle: show json loader
+            col1_1, col1_2 = col1.columns(2)
+            json_tog = col1_1.toggle(label="Upload Parameters?",
+                                   value = False,
+                                   key='json_toggle')
+
+            if json_tog:
+                # keep random seed checkbox?
+                json_random = col1_2.checkbox(label="Use given random seeds?",
+                                            value=False,
+                                            key = 'keep_rand')
+                # file upload
+                json_file = col1.file_uploader(label="Upload JSON file here:",
+                                               type="json",
+                                               key='json_input')
+                if json_file:
+                    self.__set_params()
             
             ########## Scaler Selector ##########
             scaler_entry = col1.radio(self.__STRINGS['Scaler_Entry'],
@@ -417,15 +456,15 @@ class App:
 
             results_file1.download_button(label = self.__STRINGS['Download_Results'],
                                           data = result_f,
-                                          file_name = results_path)
+                                          file_name = results_path.split('/')[-1])
             
             results_file2.download_button(label = self.__STRINGS['Download_Metadata'],
                                           data = metadata_f,
-                                          file_name = metadata_path)
+                                          file_name = metadata_path.split('/')[-1])
             
             results_file3.download_button(label = self.__STRINGS['Download_Parameters'],
                                           data = params_f,
-                                          file_name = params_path)
+                                          file_name = params_path.split('/')[-1])
             
             result_f.close()
             metadata_f.close()

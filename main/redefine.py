@@ -240,6 +240,7 @@ class REDEFINE:
 
         # See if random_state is a parameter, set seed for replicability
         if 'random_state' in model_params:
+            # TODO: set boolean to keep/change random seed
             random_seed = self.__get_random_seed()
             clean_param['random_state'] = random_seed
 
@@ -605,7 +606,7 @@ class REDEFINE:
         Returns:
             str: current time with underscores for file-naming
         '''
-        return str(dt.now()).replace(':','-').replace(' ', '_')
+        return str(dt.now()).replace(':','-').replace(' ', '_').replace('.', '_')
 
     # Getters
     def get_X(self):
