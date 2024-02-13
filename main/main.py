@@ -1,4 +1,4 @@
-from app import App
+from app3 import App
 import streamlit as st
 
 if __name__ == '__main__':

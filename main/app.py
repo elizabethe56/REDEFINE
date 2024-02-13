@@ -20,9 +20,9 @@ class App:
     def __init__(self):
         # Preset session states; Used to preserve states on reruns/button pushes
         if 'data' not in st.session_state:
-            st.session_state.data = ""
+            st.session_state.data = None
         if 'has_data' not in st.session_state:
-            st.session_state.has_data = False
+            st.session_state.has_data_b = False
 
         if 'target_valid' not in st.session_state:
             st.session_state.target_valid = False
@@ -32,10 +32,10 @@ class App:
         if 'data_set' not in st.session_state:
             st.session_state.data_set = False
 
-        if 'json_input' not in st.session_state:
-            st.session_state.json_input = None
         if 'keep_rand' not in st.session_state:
             st.session_state.keep_rand = False
+        if 'json_input' not in st.session_state:
+            st.session_state.json_input = None
 
         if 'param_dict' not in st.session_state:
             st.session_state.param_dict = {}
@@ -332,24 +332,35 @@ class App:
                                    value = False,
                                    key='json_toggle')
 
+            # if json_tog:
+            #     # TODO: Configure functions around callbacks so modifications can be made while file is still uploaded
+            #     # TODO: Can you do it with only using json.load once? honestly is small enough it probably won't matter
+            #     # file upload
+            #     json_file = col1.file_uploader(label="Upload JSON file here:",
+            #                                    type="json",
+            #                                    key='json_input')
+                
+            #     # keep random seed checkbox?
+            #     json_random = col1_2.checkbox(label="Use given random seeds?",
+            #                                   value=False,
+            #                                   key = 'keep_rand')
+                
+            #     if json_file:
+            #         loaded_json = json.load(json_file)
+            #         self.__set_params(loaded_json)
+            #         if json_random:
+            #             self.__set_kf_random_seed(loaded_json)
+
             if json_tog:
-                # TODO: Configure functions around callbacks so modifications can be made while file is still uploaded
-                # TODO: Can you do it with only using json.load once? honestly is small enough it probably won't matter
-                # file upload
+                json_random = col1_2.checkbox(label="Use given random seeds?",
+                                              value = False,
+                                              key= 'keep_rand')
+                
                 json_file = col1.file_uploader(label="Upload JSON file here:",
                                                type="json",
                                                key='json_input')
                 
-                # keep random seed checkbox?
-                json_random = col1_2.checkbox(label="Use given random seeds?",
-                                              value=False,
-                                              key = 'keep_rand')
-                
-                if json_file:
-                    loaded_json = json.load(json_file)
-                    self.__set_params(loaded_json)
-                    if json_random:
-                        self.__set_kf_random_seed(loaded_json)
+
             
             ########## Scaler Selector ##########
             scaler_entry = col1.radio(self.__STRINGS['Scaler_Entry'],
@@ -460,7 +471,7 @@ class App:
                 run_error.error(st.session_state.run_err)
         # endregion
 
-        st.write(st.session_state)
+        # st.write(st.session_state)
 
         # Results
         # region
@@ -479,9 +490,13 @@ class App:
         if st.session_state.run_files is not None:
             results_path, metadata_path, params_path = st.session_state.run_files
 
+            
+
             result_f = open(results_path, 'r')
             metadata_f = open(metadata_path, 'r')
             params_f = open(params_path, 'r')
+
+            
 
             results_file1.download_button(label = self.__STRINGS['Download_Results'],
                                           data = result_f,

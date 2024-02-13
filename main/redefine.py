@@ -74,7 +74,8 @@ class REDEFINE:
                      unsup_str : str,
                      unsup_params : dict,
                      scaler_str : str,
-                     keep_rand : bool
+                     keep_rand : bool,
+                     kf_seed: int,
                      ) -> tuple[Optional[str], Optional[list[Union[int, str]]], Optional[tuple[str]], Optional[tuple[figure]]]:
         '''
         The main pipeline.  Compares the results from the supervised model and unsupervised model to the original labels.  Saves results and metadata to files and outputs them to the app.
@@ -101,14 +102,11 @@ class REDEFINE:
                                         scaler_str = scaler_str,
                                         model_type = "supervised",
                                         keep_rand = keep_rand,
+                                        kf_seed = kf_seed,
                                         store_results = True)
             
-            if super_info['error'] is not None:
-                return super_info['error'], None, None, None
-            else:
-                for idx, res in super_info['results']:
-                    results_df.at[idx, 'SupervisedResult'] = res
-            
+            for idx, res in super_info['results']:
+                results_df.at[idx, 'SupervisedResult'] = res
             # Run Cluster Alg
             unsup_info = self.run_model(model_str = unsup_str,
                                         params = unsup_params, 
@@ -117,10 +115,7 @@ class REDEFINE:
                                         keep_rand = keep_rand,
                                         store_results = True)
             
-            if unsup_info['error'] is not None:
-                return unsup_info['error'], None, None, None
-            else:
-                results_df['UnsupervisedResult'] = unsup_info['results']
+            results_df['UnsupervisedResult'] = unsup_info['results']
 
             # Results
             flagged_ids = self.__eval_misclassed(results_df)
@@ -128,12 +123,13 @@ class REDEFINE:
             path_names = self.__get_file_paths()
             
             plots, plot_random = self.__make_plots(flagged_ids, results_df, scaler_str)
-        
+            print(self.__kf_random_seed)
             self.__write_to_files(results_df, super_info, unsup_info, flagged_ids, plot_random, path_names)
 
-            return None, flagged_ids, path_names, plots
+            return flagged_ids, path_names, plots
         except Exception as e:
-            return e, None, None, None
+            pe()
+            raise Exception(e)
         
     def run_model(self,
                   model_str : str, 
@@ -141,6 +137,7 @@ class REDEFINE:
                   scaler_str : str,
                   model_type : str,
                   keep_rand : bool,
+                  kf_seed : int = None,
                   store_results : bool = False
                   ) -> dict:
         '''
@@ -159,13 +156,12 @@ class REDEFINE:
 
         info = {'model_name' : model_str, 
                 'scaler_name' : scaler_str, 
-                'error' : None, 
                 'score' : None,
                 'results' : None}
-
+        
         clean_params = self.__clean_params(model_str, params, keep_rand)
         info['model_params'] = clean_params
-        
+
         t0 = dt.now()
         try:
             model = self.__MODELS[model_str](**clean_params)
@@ -175,6 +171,7 @@ class REDEFINE:
                 scaler = self.__SCALERS[scaler_str]()
 
             if model_type == 'supervised':
+                self.__kf_random_seed = kf_seed
                 score, results = self.__doKFold(model, scaler, keep_rand, store_results)
             else:
                 score, results = self.__doClustering(model, scaler)
@@ -183,7 +180,9 @@ class REDEFINE:
             info['results'] = results
 
         except Exception as e:
-            info['error'] = str(e)
+            pe()
+            raise Exception(e)
+        
         info['runtime'] = dt.now() - t0
         return info
     
@@ -216,6 +215,14 @@ class REDEFINE:
         data_cols = list(data.columns).copy()
         data_cols.remove(target_col)
         data_cols.remove(id_col)
+        
+        # Check for non-numeric data in remaining columns
+        for col in data_cols:
+            try:
+                pd.to_numeric(data[col])
+            except:
+                raise Exception(f"Data in column '{col}' is non-numeric.")
+
         self.__X = data[data_cols].values
         return
     
@@ -336,7 +343,6 @@ class REDEFINE:
 
         super_params = {key:val for key, val in super_info.items() if key in keep}
         unsup_params = {key:val for key, val in unsup_info.items() if key in keep}
-
         params_dict = {'super': super_params, 'unsup': unsup_params, 'kf_random_seed':self.__kf_random_seed}
         with open(params_path, 'w+') as f:
             json.dump(params_dict, f)
@@ -484,7 +490,7 @@ class REDEFINE:
         idxs = np.linspace(0, n, self.__kfolds+1).astype(int)
         idx = np.arange(0, n)
 
-        if not keep_rand:
+        if (not keep_rand) or (self.__kf_random_seed is None):
             self.__kf_random_seed = self.__get_random_seed()
         rs = np.random.RandomState(self.__kf_random_seed)
         rs.shuffle(idx)

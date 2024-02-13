@@ -71,7 +71,7 @@ id,Label,SupervisedResult,UnsupervisedResult,Flagged
 69,versicolor,versicolor,versicolor,
 70,versicolor,virginica,virginica,True
 71,versicolor,versicolor,versicolor,
-72,versicolor,virginica,versicolor,
+72,versicolor,versicolor,versicolor,
 73,versicolor,versicolor,versicolor,
 74,versicolor,versicolor,versicolor,
 75,versicolor,versicolor,versicolor,
