@@ -123,7 +123,6 @@ class REDEFINE:
             path_names = self.__get_file_paths()
             
             plots, plot_random = self.__make_plots(flagged_ids, results_df, scaler_str)
-            print(self.__kf_random_seed)
             self.__write_to_files(results_df, super_info, unsup_info, flagged_ids, plot_random, path_names)
 
             return flagged_ids, path_names, plots

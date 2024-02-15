@@ -2,19 +2,19 @@ Metadata
 
 Flagged Points: [11, 46, 62, 70, 77, 87, 106, 119, 133, 134, 146]
 
-KFold Random Seed: 79474697
+KFold Random Seed: 55499273
 
 Supervised Model:
 model_name: sklearn.neighbors._classification.KNeighborsClassifier
 scaler_name: sklearn.preprocessing._data.MaxAbsScaler
-score: 0.9200000000000002
-model_params: {'weights': 'distance'}
-runtime: 0:00:00.034089
+score: 0.9199999999999999
+model_params: {'weights': 'distance', 'n_neighbors': 6}
+runtime: 0:00:00.027974
 
 Unsupervised Model:
 model_name: sklearn.cluster._kmeans.KMeans
 scaler_name: sklearn.preprocessing._data.MaxAbsScaler
 score: 0.9266666666666666
-model_params: {'random_state': 55100076, 'n_clusters': 3, 'n_init': 20}
-runtime: 0:00:00.056707
-Plot Random Seed: 76669117
+model_params: {'random_state': 5356704, 'n_clusters': 3, 'n_init': 20, 'max_iter': 5000, 'tol': 0.001}
+runtime: 0:00:00.040240
+Plot Random Seed: 32100875

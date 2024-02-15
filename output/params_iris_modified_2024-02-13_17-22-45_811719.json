@@ -1,1 +1,0 @@
-{"super": {"model_name": "K Nearest Neighbors", "scaler_name": "Absolute Max", "model_params": {"weights": "distance"}}, "unsup": {"model_name": "KMeans", "scaler_name": "Absolute Max", "model_params": {"random_state": 55100076, "n_clusters": 3, "n_init": 20}}, "kf_random_seed": 79474697}

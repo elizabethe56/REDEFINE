@@ -11,9 +11,6 @@ from bokeh.resources import CDN
 
 from redefine import REDEFINE
 
-# Callbacks run the callback then rerun the whole thing.  
-# That's why the callbacks have to be run with the entire thing considered blank except the parameters given
-
 class App:
     
     with open('main/strings.txt', 'r') as f:
@@ -32,6 +29,9 @@ class App:
         if 'ss_data_raw_b' not in st.session_state:
             st.session_state.ss_data_raw_b = False
 
+        if 'ss_param_rand_b' not in st.session_state:
+            st.session_state.ss_param_rand_b = False
+
         if 'ss_param_dict' not in st.session_state:
             st.session_state.ss_param_dict = {}
 
@@ -49,6 +49,12 @@ class App:
     
     def __reset_state(self,
                       keys: str | list[str]):
+        '''
+        Sets session state variables to their neutral state, using the last part of the variable name as a flag for what their neutral state is.
+
+        Parameters:
+            keys: the name(s) of the session state variables that are to be reset.
+        '''
         if type(keys) == str:
             keys = [keys]
         for k in keys:
@@ -62,16 +68,36 @@ class App:
         return
     
     def __load_demo_data(self):
+        '''
+        Loads the demo data as a pandas dataframe and adds it to the session state.
+        '''
 
         data = pd.read_csv(self.__DEMO_DATA_PATH)
         st.session_state.ss_data = data
         return
     
-    def __load_data(self, empty : st.empty):
+    def __load_data(self, 
+                    empty : st.empty):
+        '''
+        Reads in the uploaded data file and verifies it will work with the model.
+        
+        Parameters:
+            empty: an empty streamlit container that displays any error found.
+        '''
 
         @st.cache_data
         def verify_data(file : st.UploadedFile
                         ) -> pd.DataFrame | str:
+            '''
+            Reads the file as a .csv, then verifies if the data shape is valid.
+            Caches this process to minimize processing time, especially in the face of mistakes.
+
+            Parameters:
+                file: a Streamlit UploadedFile object, from the file_uploader widget
+
+            Returns:
+                Either a Pandas DataFrame, if the data is valid, or an error string, if not.
+            '''
             
             if file.name.split('.')[-1] != 'csv':
                 return self.__STRINGS['Data_Entry_Error_Type']
@@ -107,6 +133,19 @@ class App:
                    target_empty : st.empty, 
                    id_empty : st.empty):
         
+        '''
+        Verifies the columns and data then creates a REDEFINE object. Uses caching to minimize processing time.
+
+        Parameters:
+            data_demo_b: a boolean that indicates if the user wishes to use the demo data
+            data: a Pandas DataFrame of the data
+            data_file: the Streamlit UploadedFile object from the file_uploader widget
+            target_col: the column name indicated as having the target values
+            id_col: the column name indicated as having the ids for each observation, can be None
+            target_empty: the streamlit container for if there is an error with the target column
+            id_empty: the streamlit container for if there is an error with the id column or the data
+        '''
+        
         @st.cache_data
         def create_redefine_object(file_name, data, target_col, id_col):
             return REDEFINE(file_name, data.copy(), target_col, id_col)
@@ -139,9 +178,13 @@ class App:
                     id_empty.error(e)
                     return
                 
-    def __set_params(self, f):
+    def __set_params(self, 
+                     f : st.UploadedFile):
         '''
         Sets parameter variables according to the uploaded JSON file.
+
+        Parameters:
+            f: the uploaded parameter JSON file
         '''
         if 'super' in f:
             if 'scaler_name' in f['super']:
@@ -162,7 +205,18 @@ class App:
             
         return
                 
-    def __validate_model(self, model_type, model_str, res_empty):
+    def __validate_model(self, 
+                         model_type : str, 
+                         model_str : str, 
+                         res_empty : st.empty):
+        '''
+        Calls the run_model function from redefine.py then displays the results.
+
+        Parameters:
+            model_type: a string of either 'supervised' or 'unsupervised' to trigger the correct type of model
+            model_str: the name of the model chosen, as listed in the dropdown menu
+            res_empty: the streamlit container that displays either the accuracy score or the error
+        '''
         try:
             info = st.session_state.ss_redefine.run_model(model_str = model_str,
                                                           params = st.session_state.ss_param_dict[model_str],
@@ -174,19 +228,26 @@ class App:
             res_empty.error(e)
         return
     
-    def __run(self, run_empty):
+    def __run(self, 
+              run_empty : st.empty):
+        '''
+        Runs the model. Saves the results in session state variables, displays errors if they occur.
+
+        Parameters:
+            run_empty: the streamlit container for displaying any errors that occur.
+        '''
         print("Run!")
         self.__reset_state(['ss_results', 'ss_results_files', 'ss_results_plots'])
         supervised = st.session_state.ss_param_super_model
         unsupervised = st.session_state.ss_param_unsup_model
         try:
             results, files, plots = st.session_state.ss_redefine.run_redefine(supervised,
-                                                                        st.session_state.ss_param_dict[supervised],
-                                                                        unsupervised,
-                                                                        st.session_state.ss_param_dict[unsupervised],
-                                                                        st.session_state.ss_param_scaler,
-                                                                        st.session_state.ss_param_rand_b,
-                                                                        st.session_state.ss_param_kf_seed)
+                                                                              st.session_state.ss_param_dict[supervised],
+                                                                              unsupervised,
+                                                                              st.session_state.ss_param_dict[unsupervised],
+                                                                              st.session_state.ss_param_scaler,
+                                                                              st.session_state.ss_param_rand_b,
+                                                                              st.session_state.ss_param_kf_seed)
             st.session_state.ss_results = results
             st.session_state.ss_results_files = files
             st.session_state.ss_results_plots = plots
@@ -197,10 +258,14 @@ class App:
         return
     
     def __data_entry_ui(self, col1):
+        '''
+        The display for Step 1, the data entry and validation.
+        '''
+        
         data_demo_b = col1.toggle(self.__STRINGS['Data_Demo'],
                                   key = 'ss_data_demo_b',
                                   help = self.__STRINGS['Data_Demo_Help'],
-                                  on_change=self.__reset_state,
+                                  on_change = self.__reset_state,
                                   args=[['ss_data_raw_b','ss_data', 'ss_redefine', 'ss_param_json_b', 'ss_param_rand_b']])
         
         data_file = col1.file_uploader(self.__STRINGS['Data_Entry'], 
@@ -208,8 +273,8 @@ class App:
                                        accept_multiple_files = False,
                                        key = 'ss_data_file',
                                        help = self.__STRINGS['Data_Entry_Help'],
-                                       on_change=self.__reset_state,
-                                       args=[['ss_data_raw_b','ss_data', 'ss_redefine', 'ss_param_json_b', 'ss_param_rand_b']],
+                                       on_change = self.__reset_state,
+                                       args = [['ss_data_raw_b','ss_data', 'ss_redefine', 'ss_param_json_b', 'ss_param_rand_b']],
                                        disabled = data_demo_b)
         data_file_err = col1.empty()
 
@@ -268,27 +333,38 @@ class App:
         return
     
     def __param_entry_ui(self, col1):
-        # TODO: add strings to string file
-        # TODO: add help info
+        '''
+        The display for Step 2, the parameter entry and validation.
+        '''
+
         col1_1, col1_2 = col1.columns(2)
-        param_json_b = col1_1.toggle(label = "Upload Parameter File",
-                                        key = 'ss_param_json_b')
-        
-        param_rand_b = col1_2.checkbox(label = "Use given random seeds?",
-                                        key = 'ss_param_rand_b')
+        param_json_b = col1_1.toggle(label = self.__STRINGS['Param_Upload'],
+                                     key = 'ss_param_json_b',
+                                     help = self.__STRINGS['Param_Upload_Help'],
+                                     )
         
         if param_json_b:
-            param_file = col1.file_uploader(label = "Upload JSON file here:",
+            param_rand_b = col1_2.checkbox(label = self.__STRINGS['Param_Rand_Check'],
+                                           key = 'ss_param_rand_b',
+                                           help = self.__STRINGS['Param_Rand_Help'])
+            
+            param_file = col1.file_uploader(label = self.__STRINGS['Param_File_Upload'],
                                             type = "json",
                                             key = 'ss_param_file')
+            param_file_err = col1.empty()
         else:
             param_file = None
             
-        param_reset_b = col1.button(label = "Reset Parameters")
+        param_reset_b = col1.button(label = self.__STRINGS['Param_Reset'],
+                                    help = self.__STRINGS['Param_Reset_Help'])
         if param_reset_b:
             self.__reset_state('ss_param_dict')
             if param_file is not None:
-                self.__set_params(json.load(param_file))
+                if param_file.name.split('_')[0] == 'params':
+                    self.__set_params(json.load(param_file))
+                else:
+                    param_file_err.error(self.__STRINGS['Param_File_Error'])
+                
         
         ########## Scaler Selector ##########
         param_scaler = col1.radio(self.__STRINGS['Scaler_Entry'],
@@ -383,6 +459,10 @@ class App:
         return
 
     def __results_ui(self, col2):
+        '''
+        The display for the model results, on the right side of the screen.
+        '''
+
         run_results = str(st.session_state.ss_results).replace("'", '').replace('[', '').replace(']','')
         col2.write(f"{self.__STRINGS['Results_Text']}\t{run_results}")
 
@@ -405,19 +485,19 @@ class App:
 
         if st.session_state.ss_results_files is not None:
             results_path, metadata_path, params_path = st.session_state.ss_results_files
-            col3_1, col3_2, col3_3 = col2.columns(3)
+            
             result_f = open(results_path, 'r')
             metadata_f = open(metadata_path, 'r')
             params_f = open(params_path, 'r')
-            col3_1.download_button(label = self.__STRINGS['Download_Results'],
+            col2.download_button(label = self.__STRINGS['Download_Results'],
                                  data = result_f,
                                  file_name = results_path.split('/')[-1])
             
-            col3_2.download_button(label = self.__STRINGS['Download_Metadata'],
+            col2.download_button(label = self.__STRINGS['Download_Metadata'],
                                  data = metadata_f,
                                  file_name = metadata_path.split('/')[-1])
             
-            col3_3.download_button(label = self.__STRINGS['Download_Parameters'],
+            col2.download_button(label = self.__STRINGS['Download_Parameters'],
                                  data = params_f,
                                  file_name = params_path.split('/')[-1])
 
