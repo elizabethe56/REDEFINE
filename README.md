@@ -28,7 +28,7 @@ REDEFINE is an app that identifies potentially misclassified points in classific
 
 ### Access
 * Hosted: https://redefine-app.streamlit.app/
-    * The app will sometimes deactivate due to inactivity.
+    * The app will sometimes deactivate due to inactivity. Simply click the button to wake the app up.
 * Local: 
     * In the terminal, build the virtual environment:
         * `pipenv shell`
